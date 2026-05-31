@@ -34,7 +34,7 @@
 #define BT_BUFFER_SIZE                1024
 #define BT_RX_QUEUE_LEN              16
 #define SPP_SERVER_NAME              "CMSIS-DAP"
-#define SPP_DEVICE_NAME              "ESP32-CMSIS-DAP"
+#define SPP_DEVICE_NAME              "AIRTAP"
 
 // CMSIS-DAP packet framing (same as TCP/USB)
 #define DAP_PACKET_HEADER_SIZE       8

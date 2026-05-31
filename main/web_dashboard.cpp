@@ -257,7 +257,7 @@ static const char *DASHBOARD_HTML = R"html(
                 </div>
                 <div class="stat">
                     <span class="stat-label">Product:</span>
-                    <span class="stat-value">ESP32 CMSIS-DAP</span>
+                    <span class="stat-value">AIRTAP</span>
                 </div>
                 <div class="stat">
                     <span class="stat-label">Rx Bytes:</span>
@@ -279,7 +279,7 @@ static const char *DASHBOARD_HTML = R"html(
                 </div>
                 <div class="stat">
                     <span class="stat-label">Device Name:</span>
-                    <span class="stat-value">ESP32-CMSIS-DAP</span>
+                    <span class="stat-value">AIRTAP</span>
                 </div>
                 <div class="stat">
                     <span class="stat-label">Rx Bytes:</span>

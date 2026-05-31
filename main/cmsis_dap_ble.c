@@ -161,7 +161,7 @@ static void ble_advertise(void) {
 
     // Set device name
     const char *name = ble_svc_gap_device_name();
-    if (!name) name = "ESP32-CMSIS-DAP-BLE";
+    if (!name) name = "AIRTAP-BLE";
     fields.name = (uint8_t *)name;
     fields.name_len = strlen(name);
     fields.name_is_complete = 1;
@@ -294,7 +294,7 @@ bool cmsis_dap_ble_init(void) {
     ble_gatts_add_svcs(gatt_svc_def);
 
     // Set device name
-    ble_svc_gap_device_name_set("ESP32-CMSIS-DAP-BLE");
+    ble_svc_gap_device_name_set("AIRTAP-BLE");
 
     // Start NimBLE
     nimble_port_freertos_init(cmsis_dap_ble_task);

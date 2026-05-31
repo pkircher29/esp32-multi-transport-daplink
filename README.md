@@ -1,6 +1,8 @@
 # Airtap (cmsis_dap_tcp) - Wireless Multi-Transport Debugger 🔌🚀
 
-> **Welcome to Airtap!** This project transforms a cheap ESP32 / ESP32-S3 module into a premium, high-performance, wireless **CMSIS-DAP debugger and programmer** featuring simultaneous multi-transport support, dynamic STM32 setup assistance, OTA wireless updates, and a live web console!
+> **AIRTAP**: **A**dvanced **I**nteractive **R**emote **T**est **A**ccess **P**ort.
+> 
+> A premium, high-performance, wireless JTAG/SWD **CMSIS-DAP debugger and programmer** featuring simultaneous multi-transport support, dynamic STM32 setup assistance, OTA wireless updates, and a live web console completely over the air!
 
 ---
 

@@ -1,382 +1,102 @@
-# cmsis_dap_tcp for OpenOCD - Multi-Transport Edition
+# Airtap (cmsis_dap_tcp) - Wireless Multi-Transport Debugger 🔌🚀
 
-> **New**: This project now supports **WiFi/TCP, USB CDC, and Bluetooth SPP** simultaneously!
+> **Welcome to Airtap!** This project transforms a cheap ESP32 / ESP32-S3 module into a premium, high-performance, wireless **CMSIS-DAP debugger and programmer** featuring simultaneous multi-transport support, dynamic STM32 setup assistance, OTA wireless updates, and a live web console!
 
-OpenOCD supports the CMSIS-DAP protocol to communicate with a JTAG / SWD
-programmer. Typically this is a local programmer with a USB connection. With
-the addition of the OpenOCD cmsis_dap_tcp backend, the CMSIS-DAP protocol can
-now run over TCP/IP instead of USB. This allows OpenOCD to connect to a remote
-programmer over the network.
+---
 
-This project provides the remote-side implementation of the cmsis_dap_tcp
-protocol, using an ESP32 as the remote programmer. It allows a cheap ESP32
-board to program and debug an ARM microcontroller target via **multiple simultaneous transports**:
+## 🌟 Upgraded Airtap Features
 
-- **WiFi/TCP** (Active by default) - Remote debugging over wireless network
-- **USB CDC** (Optional) - Plug-and-play USB debugger when docked
-- **Bluetooth SPP** (Optional) - Wireless debugging without WiFi infrastructure
+* **📡 Local mDNS Addressing (`http://airtap.local`)**
+  * Fully resolves locally at `http://airtap.local` once connected to your network. No more looking up DHCP address tables in router consoles!
+* **🚀 STM32 Out-of-Box (OOB) Assistant**
+  * **🔌 Visual SWD wiring maps** embedded straight inside the dashboard.
+  * **📥 One-Click `openocd.cfg`** dynamic download configured with the active network hostname.
+  * **📥 One-Click `.vscode/launch.json`** dynamic downloader to instantly setup wireless Cortex-Debug sessions.
+* **☁️ Wireless Over-The-Air (OTA) Updates**
+  * Built with a custom 2MB dual-OTA partition scheme (`partitions.csv`) splitting flash into two secure application banks.
+  * Update your firmware wirelessly by dragging and dropping new `.bin` binaries directly onto the dashboard's **OTA Upload Card**!
+* **🖥️ Retro Web Monospace Serial Terminal**
+  * Stream live bidirectional debug prints and send command keys straight from your browser.
+  * Bridged dynamically using modern WebSockets (`ws://airtap.local/ws`) directly to the target microcontroller's UART1 lines.
+* **🌐 Automatic Captive Portal Redirection**
+  * When in SoftAP configuration mode, connecting to the **`ESP32-DAPLink-[MAC]`** hotspot instantly launches a captive portal redirection loading the setup dashboard at `http://192.168.4.1` automatically!
 
-![diagram](img/cmsis_dap_tcp_diagram.svg)
+---
 
-## Key Features
+## 📐 Supported Transports
 
-- **Multiple Simultaneous Transports**: WiFi/TCP, USB CDC, and Bluetooth SPP can all operate at the same time
-- **Tested with** XIAO ESP32C6 and ESP32-S3-DevKitC-1 development boards as the programmer, and STM32F103 Blue Pill and Nucleo STM32F401RE as the targets
-- **Both JTAG and SWD modes** supported. 2 GPIO needed for SWD, minimum 4 GPIO for JTAG
-- An optional GPIO pin can be used to drive the NRST# (SRST) signal, but this
-  is typically not required.
-- In JTAG mode, an optional GPIO pin can be used to drive the TRST signal, but
-  this is typically not required.
-- A separate GPIO may be used to control an activity LED.
-- UART to TCP/IP bridge can be enabled to provide access to the target board's
-  serial console remotely, using an ESP32 UART.
-- **Transport Configuration**: Edit `sdkconfig` or run `idf.py menuconfig` to:
-  - Set WiFi credentials for TCP mode
-  - Enable USB CDC transport (when TinyUSB available)
-  - Enable Bluetooth SPP transport (when Bluedroid available)
-  - Configure GPIO pin assignments
-- **Typical performance**:
-  - Reading / writing SRAM: up to 200 KB/sec
-  - Flashing a 512 KB firmware image to the STM32F401RE
-  completes in about 13.4 seconds, including erase, program, and verify (with 4
-  to 8 seconds of that time used for flash erasure). The Blue Pill takes about
-  6 seconds for a 64KB image.
-  - Performance depends on the quality of your WiFi network.
+Airtap allows simultaneous operations across all configured interfaces:
+1. **WiFi / TCP** (Active by default) - Remote wireless CMSIS-DAP debugging over port `4441`.
+2. **USB CDC** (Optional) - Standard plug-and-play local CMSIS-DAP debugger when docked via USB.
+3. **Bluetooth SPP** (Optional) - Wireless serial/JTAG bridge when out of WiFi range.
+4. **TCP Serial Bridge** - Standalone TCP socket server on port `4442` mapping target UART1 logs.
 
-![pinout](img/xiao_esp32c6_pinout.png)
+---
 
-The CMSIS-DAP code came from the Firmware directory of the [CMSIS-DAP
-repo](https://github.com/ARM-software/CMSIS-DAP). ```DAP_config.h``` was then
-modified to support the ESP32 GPIO.
-```
-commit 1fd47bed772ea40923472c90dfe11516e76033ee (HEAD -> main, tag: v2.1.2, origin/main, origin/HEAD)
-```
+## 🔌 SWD Pin Mapping
 
-## Quick Start
+Connect your target device (e.g. STM32 Blue Pill, Nucleo, or similar Cortex-M boards) to your Airtap ESP32-S3 according to this SWD scheme:
 
-1. **Select your board**:
-   ```bash
-   # For XIAO ESP32-C6
-   cp sdkconfig.xiao_esp32c6 sdkconfig
-   
-   # For ESP32-S3-DevKitC-1
-   cp sdkconfig.esp32s3_devkitc_1 sdkconfig
-   ```
+| Airtap Pin | direction | Target Pin | description |
+| :--- | :---: | :--- | :--- |
+| **GPIO 13** | ➡️ | **SWDIO / TMS** | SWD Data Input/Output |
+| **GPIO 14** | ➡️ | **SWCLK / TCK** | SWD Clock |
+| **GPIO 12** | ➡️ | **nRESET (SRST)** | Target Reset (Optional) |
+| **GND** | ↔️ | **GND** | Common Ground Reference |
 
-2. **Configure settings** (optional):
-   ```bash
-   idf.py menuconfig
-   # Set WiFi SSID/password
-   # Enable/disable transports (USB, Bluetooth)
-   # Configure GPIO pins
-   ```
+---
 
-3. **Build and flash**:
-   ```bash
-   idf.py build
-   idf.py -p /dev/ttyUSB0 flash
-   idf.py monitor  # See WiFi connection and TCP server startup
-   ```
+## ⚡ Quick Start
 
-4. **Connect with OpenOCD**:
-   ```bash
-   openocd -f tcl/interface/cmsis_dap_tcp.cfg \
-           -f tcl/target/stm32f1x.cfg
-   ```
+### 1. Select and Copy Board Config
+```bash
+# For ESP32-S3-DevKitC-1
+cp sdkconfig.esp32s3_devkitc_1 sdkconfig
 
-For detailed configuration and usage, see [FEATURES.md](FEATURES.md).
-
-# Limitations
-
-The software has some limitations:
-
-- SWO is currently unsupported.
-- Maximum clock rate is about 1000 KHz (ESP32C6 configured for 160 MHz / 80 MHz).
-- The WiFi credentials are hardcoded. The software must be rebuilt if you want
-  to change them.
-
-# Building and Flashing the Firmware
-
-This code requires the ESP-IDF build tools. Refer to the official
-[installation guide](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/index.html#installation)
-and install them first.
-
-Activate your ESP-IDF virtual environment:
-
-```
-. $HOME/esp/esp-idf/export.sh
-```
-
-The code supports multiple different boards, and each one has its own
-```sdkconfig``` file.
-
-Choose the correct ```sdkconfig.<board_name>``` file for your board and copy it
-to ```sdkconfig```. Then configure, build and flash the firmware. For example,
-for the Xiao ESP32-C6 board:
-
-```
+# For XIAO ESP32-C6
 cp sdkconfig.xiao_esp32c6 sdkconfig
-idf.py fullclean menuconfig
-idf.py build flash
 ```
 
-In menuconfig, goto to the "CMSIS-DAP configuration" page.
-
-* Your WiFi SSID and password can be configured on the "WiFi configuration"
-  subpage.  (If you are not using WPA2, you might need to adjust the WiFi Scan
-  auth mode threshold).
-
-  <img src="img/menuconfig1.png" width="75%" />
-  <br><br>
-  <img src="img/menuconfig2.png" width="75%" />
-
-* If needed, you can change the GPIO port pins for JTAG, SWD, reset, and LED on
-  the "GPIO number assignments" subpage. The signals can be disabled if they are
-  not needed.
-
-  <img src="img/menuconfig3.png" width="75%" />
-
-* If you want to use the UART to TCP/IP bridge, it can be configured on the
-  the "UART to TCP/IP bridge" subpage. (Currently, the baud rate and other
-  settings cannot be changed at runtime). A script ```host/uart_bridge.sh```
-  is provided that uses ```socat``` to present the remote UART as a pseudo-tty
-  that can be opened using any serial terminal program on the host.
-
-  <img src="img/menuconfig4.png" width="75%" />
-
-
-# Building and Running OpenOCD
-
-Get the latest source code from git. Configure and build it as usual:
-
+### 2. Build and Flash the Firmware
+To build, compile, and write the initial custom dual-OTA partitions to your board over `COM4` (Windows):
+```powershell
+. C:\Espressif\idf5.5.ps1
+idf.py build
+idf.py -p COM4 flash
 ```
-git clone git://git.code.sf.net/p/openocd/code openocd
-cd openocd
-./bootstrap
-./configure
-make
-```
+*Note: During the first flash, `esptool.py` will automatically repartition the 2MB flash into two symmetric 960K app slots.*
 
-An OpenOCD configuration file has been provided for convenience.
-Edit your ```tcl/interface/cmsis_dap_tcp.cfg``` configuration file to point to
-your ESP32's IP address:
+### 3. Connect & Configure
+1. Connect your PC or phone to the **`ESP32-DAPLink-[MAC]`** open Wi-Fi network.
+2. The browser will automatically open your **Airtap Dashboard**. (If not, navigate to `http://airtap.local` or `http://192.168.4.1/dashboard`).
+3. Set your home/office Wi-Fi network SSID and Password, then click **Save** and **Apply**.
+4. Once connected to your network, navigate to **`http://airtap.local`** to view your active stats and interact with the terminal!
 
-```
-adapter driver cmsis-dap
-cmsis-dap backend tcp
-cmsis-dap tcp host 192.168.1.107
-cmsis-dap tcp port 4441
-transport select swd
-reset_config none
-```
+---
 
-If you are on a slow WiFi network, you might need to add this line to avoid
-short timeouts that can lead to command mismatch errors in some cases. If so,
-specify a longer timeout in milliseconds:
+## 🛠️ Out-of-Box STM32 Debugging Setup
 
-```
-cmsis-dap tcp min_timeout 300
-```
+Airtap makes setting up your wireless debug workspace incredibly painless:
 
-To flash an STM32 target, for example, run the following command from your
-OpenOCD build directory.  Replace ```firmware.elf``` with the name of your
-ELF file, and ```stm32f1x.cfg``` with the appropriate file for your
-microcontroller.
+### Option A: Raw OpenOCD
+1. Open your browser and go to `http://airtap.local`.
+2. Click **Download openocd.cfg** and save the file in your firmware project directory.
+3. Run OpenOCD:
+   ```bash
+   openocd -f openocd.cfg -f target/stm32f4x.cfg
+   ```
 
-```
-./src/openocd --search tcl \
-              -f tcl/interface/cmsis-dap-tcp.cfg \
-              -f tcl/target/stm32f1x.cfg \
-              -c "program firmware.elf verify reset exit"
-```
+### Option B: VS Code Cortex-Debug
+1. Open your browser and go to `http://airtap.local`.
+2. Click **Download openocd.cfg** and drop it in your project root.
+3. Click **Download launch.json** and place it under your project's `.vscode/` folder.
+4. Open VS Code, select **Wireless STM32 Debug (airtap)** from the debug pane, and hit **F5** to start debugging completely wirelessly!
 
-# Operation
+---
 
-After power-on, the ESP32 will attempt to connect to the WiFi that was
-configured using menuconfig. It will then begin listening for an incoming
-connection from OpenOCD. The ESP32 will print status and error messages to the
-console, including the WiFi connection status and IP address. A message is
-printed whenever the OpenOCD client connects or disconnects. (Only one active
-client is allowed).
+## 📂 Project Structure
 
-You can run the serial monitor to view the console output. To exit the serial
-monitor use ```Ctrl+]```.
-
-```
-idf.py monitor
-```
-
-Once the ESP32 has connected to WiFi and obtained an IP address by DHCP, you
-can then run OpenOCD. You should see something like this from the ESP32:
-
-```
-CMSIS-DAP TCP running on ESP32
-ESP-IDF version: v6.0-dev-1489-g4e036983a7
-Hardware version: esp32s3 with 2 CPU core(s), WiFi/BLE, silicon revision v0.2, 2MB external flash
-Minimum free heap size: 337312 bytes
-MAC address: E4B323B60EB4
-Attempting to connect to WiFi SSID: 'SomeWifiRouter'
-Connected to WiFi SSID: 'SomeWifiRouter'. RSSI: -75 dBm
-IP address: 192.168.1.107
-Disabling WiFi power savings to improve performance.
-cmsis_dap_tcp: listening on port 4441.
-UART bridge: remapping UART_TX = GPIO_NUM_16, UART_RX = GPIO_NUM_15.
-UART bridge: listening on port 4442 for UART1.
-IPv6 address (link-local): fe80:0000:0000:0000:9aa3:16ff:feec:6640
-IPv6 address (global): 2406:3400:031f:ba10:9aa3:16ff:feec:6640
-```
-
-Additional debugging messages may be enabled by editing
-```main/cmsis_dap_tcp.h``` and uncommenting the following line. This will
-impact performance.
-
-```
-#define DEBUG_PRINTING
-```
-
-# Performance
-
-A single SWD 32-bit transfer completes in about 45 microseconds, with an
-SWCLK clock rate of approximately 1 MHz. Yellow is SWCLK. Green is SWDIO.
-
-(TODO: the scope available at the time to make these measurements was very
-limited. Redo these measurements with a better scope).
-
-![scopeshot1](img/scopeshot1.png)
-
-![scopeshot1](img/scopeshot2.png)
-
-Actual performance will depend on your WiFi network. For slow networks,
-you might need to increase the ```cmsis-dap tcp min_timeout``` parameter if
-you see error messages related to command mismatch.
-
-Starting the OpenOCD server like this:
-
-```
-./src/openocd \
-    --search tcl \
-    -c "debug_level 2" \
-    -c "adapter driver cmsis-dap" \
-    -c "transport select swd" \
-    -c "cmsis-dap backend tcp" \
-    -c "cmsis-dap tcp host 192.168.1.107" \
-    -c "cmsis-dap tcp port 4441" \
-    -c "cmsis-dap tcp min_timeout 150" \
-    -f "tcl/target/stm32f4x.cfg" \
-    -c "reset_config none"
-
-Open On-Chip Debugger 0.12.0+dev-01114-gbf01f1089 (2025-08-07-11:52)
-Licensed under GNU GPL v2
-For bug reports, read
-	http://openocd.org/doc/doxygen/bugs.html
-Info : CMSIS-DAP: using minimum timeout of 100 ms for TCP packets.
-none separate
-Info : Listening on port 6666 for tcl connections
-Info : Listening on port 4444 for telnet connections
-Info : CMSIS-DAP: Connecting to 192.168.1.107:4441 using TCP backend
-Info : CMSIS-DAP: SWD supported
-Info : CMSIS-DAP: JTAG supported
-Info : CMSIS-DAP: Atomic commands supported
-Info : CMSIS-DAP: Test domain timer supported
-Info : CMSIS-DAP: FW Version = 2.1.2
-Info : CMSIS-DAP: Serial# = E4B323B60EB4
-Info : CMSIS-DAP: Interface Initialised (SWD)
-Info : SWCLK/TCK = 0 SWDIO/TMS = 0 TDI = 0 TDO = 0 nTRST = 0 nRESET = 1
-Info : CMSIS-DAP: Interface ready
-Info : clock speed 2000 kHz
-Info : SWD DPIDR 0x2ba01477
-Info : [stm32f4x.cpu] Cortex-M4 r0p1 processor detected
-Info : [stm32f4x.cpu] target has 6 breakpoints, 4 watchpoints
-Info : [stm32f4x.cpu] Examination succeed
-Info : [stm32f4x.cpu] starting gdb server on 3333
-Info : Listening on port 3333 for gdb connections
-Info : accepting 'telnet' connection on tcp/4444
-```
-
-## Using ESP32-C6 @ 160 MHz
-
-Xiao ESP32C6 running at 160 MHz is the programmer board. Connecting to an
-STM32F401RE target and reading and writing SRAM:
-
-```
-% telnet localhost 4444
-> poll off
-
-> load_image ./random_96kb.bin 0x20000000
-98304 bytes written at address 0x20000000
-downloaded 98304 bytes in 1.092678s (87.858 KiB/s)
-
-> dump_image /dev/null 0x20000000 0x18000
-dumped 98304 bytes in 1.469766s (65.317 KiB/s)
-```
-
-Programming and verifying a 512 KB flash image takes about 20 seconds:
-
-```
-time ./src/openocd \
-    --search tcl \
-    -c "debug_level 2" \
-    -c "adapter driver cmsis-dap" \
-    -c "transport select swd" \
-    -c "cmsis-dap backend tcp" \
-    -c "cmsis-dap tcp host 192.168.1.107" \
-    -c "cmsis-dap tcp port 4441" \
-    -f "tcl/target/stm32f4x.cfg" \
-    -c "reset_config none" \
-    -c "program ${ELF} verify reset exit"
-
-Open On-Chip Debugger 0.12.0+dev-01114-gbf01f1089 (2025-08-07-11:52)
-Licensed under GNU GPL v2
-For bug reports, read
-	http://openocd.org/doc/doxygen/bugs.html
-none separate
-Info : CMSIS-DAP: Connecting to 192.168.1.107:4441 using TCP backend
-Info : CMSIS-DAP: SWD supported
-Info : CMSIS-DAP: JTAG supported
-Info : CMSIS-DAP: Atomic commands supported
-Info : CMSIS-DAP: Test domain timer supported
-Info : CMSIS-DAP: FW Version = 2.1.2
-Info : CMSIS-DAP: Serial# = E4B323B60EB4
-Info : CMSIS-DAP: Interface Initialised (SWD)
-Info : SWCLK/TCK = 0 SWDIO/TMS = 0 TDI = 0 TDO = 0 nTRST = 0 nRESET = 1
-Info : CMSIS-DAP: Interface ready
-Info : clock speed 2000 kHz
-Info : SWD DPIDR 0x2ba01477
-Info : [stm32f4x.cpu] Cortex-M4 r0p1 processor detected
-Info : [stm32f4x.cpu] target has 6 breakpoints, 4 watchpoints
-Info : [stm32f4x.cpu] Examination succeed
-Info : [stm32f4x.cpu] starting gdb server on 3333
-Info : Listening on port 3333 for gdb connections
-[stm32f4x.cpu] halted due to debug-request, current mode: Thread
-xPSR: 0x01000000 pc: 0x08000734 msp: 0x20018000
-** Programming Started **
-Info : device id = 0x10016433
-Info : flash size = 512 KiB
-** Programming Finished **
-** Verify Started **
-** Verified OK **
-** Resetting Target **
-shutdown command invoked
-
-real	0m19.242s
-user	0m0.052s
-sys		0m0.155s
-```
-
-## Using ESP32-S3 @ 240 MHz
-
-Performance is higher on ESP32-S3. The throughput seems more variable
-on each run, but here are some representative numbers for writing and
-reading SRAM:
-
-```
-% telnet localhost 4444
-> poll off
-
-> load_image ./random_96kb.bin 0x20000000
-98304 bytes written at address 0x20000000
-downloaded 98304 bytes in 0.489488s (196.123 KiB/s)
-
-> dump_image /dev/null 0x20000000 0x18000
-dumped 98304 bytes in 0.832846s (115.267 KiB/s)
-```
+* [main/main.c](main/main.c) - Firmware core boot sequence, captive portal DNS engine, SoftAP controller, and mDNS initialization.
+* [main/web_dashboard.cpp](main/web_dashboard.cpp) - Responsive Web Dashboard HTML, glassmorphic UI, REST configuration endpoints, dynamic file generators, Web OTA, and WebSocket server router.
+* [main/uart_bridge.c](main/uart_bridge.c) - Background select loop bridging serial VFS UART bytes to TCP port `4442` and active browser WebSockets.
+* [partitions.csv](partitions.csv) - Custom dual-OTA partition layouts designed specifically for 2MB flash targets.

@@ -1,0 +1,62 @@
+#ifndef WEB_DASHBOARD_H
+#define WEB_DASHBOARD_H
+
+#include <stdint.h>
+#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @brief Initialize the web dashboard HTTP server
+ * 
+ * Starts an HTTP server on port 80 with REST API endpoints
+ * and a web-based status dashboard.
+ * 
+ * @return true if initialization successful, false otherwise
+ */
+bool web_dashboard_init(void);
+
+/**
+ * @brief Check if web dashboard is initialized
+ * 
+ * @return true if running, false otherwise
+ */
+bool web_dashboard_is_initialized(void);
+
+/**
+ * @brief Get current transport status as JSON
+ * 
+ * Returns a JSON string with status of all transports:
+ * - WiFi/TCP: connected status, IP address, port
+ * - USB CDC: connection status
+ * - Bluetooth: connection status, device name
+ * 
+ * @param buffer Output buffer for JSON string
+ * @param size Maximum buffer size
+ * @return Number of bytes written
+ */
+uint16_t web_dashboard_get_status_json(char *buffer, uint16_t size);
+
+/**
+ * @brief Update statistics counters
+ * 
+ * Called by transport layers to update traffic statistics
+ * 
+ * @param transport_id 0=WiFi, 1=USB, 2=Bluetooth
+ * @param bytes_received Bytes received from target device
+ * @param bytes_sent Bytes sent to target device
+ */
+void web_dashboard_update_stats(uint8_t transport_id, uint32_t bytes_received, uint32_t bytes_sent);
+
+/**
+ * @brief Reset all statistics
+ */
+void web_dashboard_reset_stats(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // WEB_DASHBOARD_H

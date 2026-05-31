@@ -1,0 +1,11 @@
+Command: cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=C:\Espressif\python_env\idf5.5_py3.14_env\Scripts\python.exe -DESP_PLATFORM=1 -DCCACHE_ENABLE=1 C:\Users\Paul\GITHUB\cmsis_dap_tcp_esp32
+CMake Error at C:/Espressif/frameworks/esp-idf-v5.5/tools/cmake/build.cmake:332 (message):
+  Failed to resolve component 'esp_tinyusb' required by component 'main':
+  unknown name.
+Call Stack (most recent call first):
+  C:/Espressif/frameworks/esp-idf-v5.5/tools/cmake/build.cmake:375 (__build_resolve_and_add_req)
+  C:/Espressif/frameworks/esp-idf-v5.5/tools/cmake/build.cmake:689 (__build_expand_requirements)
+  C:/Espressif/frameworks/esp-idf-v5.5/tools/cmake/project.cmake:752 (idf_build_process)
+  CMakeLists.txt:9 (project)
+
+

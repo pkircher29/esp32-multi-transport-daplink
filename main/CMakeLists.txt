@@ -12,6 +12,14 @@ if(CONFIG_ESP_UART_BRIDGE_ENABLED)
     list(APPEND COMPONENT_SRCS "uart_bridge.c")
 endif()
 
+if(CONFIG_ESP_USB_CDC_ENABLED)
+    list(APPEND COMPONENT_SRCS "cmsis_dap_usb.c")
+endif()
+
+if(CONFIG_ESP_CMSIS_DAP_BT_ENABLED)
+    list(APPEND COMPONENT_SRCS "cmsis_dap_bt.c")
+endif()
+
 if(CONFIG_ESP_PRINT_CPU_USAGE)
     list(APPEND COMPONENT_SRCS "cpu_usage.c")
 endif()

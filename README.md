@@ -1,4 +1,6 @@
-# cmsis_dap_tcp for OpenOCD
+# cmsis_dap_tcp for OpenOCD - Multi-Transport Edition
+
+> **New**: This project now supports **WiFi/TCP, USB CDC, and Bluetooth SPP** simultaneously!
 
 OpenOCD supports the CMSIS-DAP protocol to communicate with a JTAG / SWD
 programmer. Typically this is a local programmer with a USB connection. With
@@ -8,17 +10,19 @@ programmer over the network.
 
 This project provides the remote-side implementation of the cmsis_dap_tcp
 protocol, using an ESP32 as the remote programmer. It allows a cheap ESP32
-board to program and debug an ARM microcontroller target. Both JTAG and the
-two-wire SWD interface are supported. OpenOCD connects to the ESP32 using
-TCP/IP over WiFi, allowing remote flashing and debugging of the ARM target
-board.
+board to program and debug an ARM microcontroller target via **multiple simultaneous transports**:
+
+- **WiFi/TCP** (Active by default) - Remote debugging over wireless network
+- **USB CDC** (Optional) - Plug-and-play USB debugger when docked
+- **Bluetooth SPP** (Optional) - Wireless debugging without WiFi infrastructure
 
 ![diagram](img/cmsis_dap_tcp_diagram.svg)
 
-- Tested with the XIAO ESP32C6 and ESP32-S3-DevKitC-1 development boards as the
-  programmer, and STM32F103 Blue Pill and Nucleo STM32F401RE as the targets.
-- Either JTAG mode or SWD mode can be used to program the target. 2 GPIO are
-  needed for SWD, or a minimum of 4 GPIO for JTAG.
+## Key Features
+
+- **Multiple Simultaneous Transports**: WiFi/TCP, USB CDC, and Bluetooth SPP can all operate at the same time
+- **Tested with** XIAO ESP32C6 and ESP32-S3-DevKitC-1 development boards as the programmer, and STM32F103 Blue Pill and Nucleo STM32F401RE as the targets
+- **Both JTAG and SWD modes** supported. 2 GPIO needed for SWD, minimum 4 GPIO for JTAG
 - An optional GPIO pin can be used to drive the NRST# (SRST) signal, but this
   is typically not required.
 - In JTAG mode, an optional GPIO pin can be used to drive the TRST signal, but
@@ -26,7 +30,12 @@ board.
 - A separate GPIO may be used to control an activity LED.
 - UART to TCP/IP bridge can be enabled to provide access to the target board's
   serial console remotely, using an ESP32 UART.
-- Typical performance:
+- **Transport Configuration**: Edit `sdkconfig` or run `idf.py menuconfig` to:
+  - Set WiFi credentials for TCP mode
+  - Enable USB CDC transport (when TinyUSB available)
+  - Enable Bluetooth SPP transport (when Bluedroid available)
+  - Configure GPIO pin assignments
+- **Typical performance**:
   - Reading / writing SRAM: up to 200 KB/sec
   - Flashing a 512 KB firmware image to the STM32F401RE
   completes in about 13.4 seconds, including erase, program, and verify (with 4
@@ -42,6 +51,40 @@ modified to support the ESP32 GPIO.
 ```
 commit 1fd47bed772ea40923472c90dfe11516e76033ee (HEAD -> main, tag: v2.1.2, origin/main, origin/HEAD)
 ```
+
+## Quick Start
+
+1. **Select your board**:
+   ```bash
+   # For XIAO ESP32-C6
+   cp sdkconfig.xiao_esp32c6 sdkconfig
+   
+   # For ESP32-S3-DevKitC-1
+   cp sdkconfig.esp32s3_devkitc_1 sdkconfig
+   ```
+
+2. **Configure settings** (optional):
+   ```bash
+   idf.py menuconfig
+   # Set WiFi SSID/password
+   # Enable/disable transports (USB, Bluetooth)
+   # Configure GPIO pins
+   ```
+
+3. **Build and flash**:
+   ```bash
+   idf.py build
+   idf.py -p /dev/ttyUSB0 flash
+   idf.py monitor  # See WiFi connection and TCP server startup
+   ```
+
+4. **Connect with OpenOCD**:
+   ```bash
+   openocd -f tcl/interface/cmsis_dap_tcp.cfg \
+           -f tcl/target/stm32f1x.cfg
+   ```
+
+For detailed configuration and usage, see [FEATURES.md](FEATURES.md).
 
 # Limitations
 

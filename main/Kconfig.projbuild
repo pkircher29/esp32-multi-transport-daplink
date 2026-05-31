@@ -70,6 +70,59 @@ menu "CMSIS-DAP configuration"
 
     endmenu
 
+    menu "USB CDC configuration"
+
+        config ESP_USB_CDC_ENABLED
+            bool "Enable USB CDC (Communications Device Class)"
+            default n
+            help
+                Start a USB CDC device (appears as a serial port over USB).
+                This provides CMSIS-DAP access over USB without requiring WiFi setup.
+                Note: Requires TinyUSB component to be available.
+
+        config ESP_USB_DEVICE_PRODUCT
+            string "USB Product Name"
+            default "ESP32 CMSIS-DAP"
+            depends on ESP_USB_CDC_ENABLED
+            help
+                The product name to display in USB device descriptor.
+
+        config ESP_USB_DEVICE_SERIAL
+            string "USB Serial Number"
+            default "auto"
+            depends on ESP_USB_CDC_ENABLED
+            help
+                The serial number to display in USB device descriptor.
+                Set to 'auto' to use the device MAC address.
+
+    endmenu
+
+    menu "Bluetooth SPP configuration"
+
+        config ESP_CMSIS_DAP_BT_ENABLED
+            bool "Enable Bluetooth SPP (Serial Port Profile)"
+            default n
+            help
+                Start a Bluetooth SPP server for wireless CMSIS-DAP access.
+                This requires Bluetooth capability on the ESP32.
+                Allows debugging over Bluetooth without requiring WiFi setup.
+
+        config ESP_BT_DEVICE_NAME
+            string "Bluetooth Device Name"
+            default "ESP32-CMSIS-DAP"
+            depends on ESP_CMSIS_DAP_BT_ENABLED
+            help
+                The name displayed when scanning for Bluetooth devices.
+
+        config ESP_BT_PIN_CODE
+            string "Bluetooth PIN Code (4 digits)"
+            default "0000"
+            depends on ESP_CMSIS_DAP_BT_ENABLED
+            help
+                PIN code for Bluetooth pairing. Set to "0000" for no PIN.
+
+    endmenu
+
     menu "UART to TCP/IP bridge"
 
         config ESP_UART_BRIDGE_ENABLED

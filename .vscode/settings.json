@@ -1,0 +1,17 @@
+{
+  "idf.espIdfPath": "C:\\Espressif\\frameworks\\esp-idf-v5.5",
+  "idf.espIdfPathWin": "C:\\Espressif\\frameworks\\esp-idf-v5.5",
+  "idf.toolsPath": "C:\\Espressif",
+  "idf.toolsPathWin": "C:\\Espressif",
+  "idf.pythonBinPath": "C:\\Espressif\\python_env\\idf5.5_py3.11_env\\Scripts\\python.exe",
+  "idf.pythonBinPathWin": "C:\\Espressif\\python_env\\idf5.5_py3.11_env\\Scripts\\python.exe",
+  "idf.gitPath": "git",
+  "idf.gitPathWin": "git",
+  "idf.port": "COM4",
+  "idf.portWin": "COM4",
+  "idf.flashType": "UART",
+  "idf.monitorBaudRate": "115200",
+  "idf.openOcdConfigs": [
+    "board/esp32s3-builtin.cfg"
+  ]
+}

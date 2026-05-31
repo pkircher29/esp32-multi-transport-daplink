@@ -68,6 +68,8 @@
 
 #include "DAP.h"
 #include "cmsis_dap_tcp.h"
+#include "cmsis_dap_usb.h"
+#include "cmsis_dap_bt.h"
 #include "uart_bridge.h"
 
 #define WIFI_SSID               CONFIG_ESP_WIFI_SSID
@@ -336,6 +338,14 @@ void app_main(void)
 
 #ifdef CONFIG_ESP_UART_BRIDGE_ENABLED
     xTaskCreate(uart_bridge_task, "uart_bridge_task", 4096, NULL, 5, NULL);
+#endif
+
+#ifdef CONFIG_ESP_USB_CDC_ENABLED
+    xTaskCreate(cmsis_dap_usb_task, "cmsis_dap_usb_task", 4096, NULL, 5, NULL);
+#endif
+
+#ifdef CONFIG_ESP_CMSIS_DAP_BT_ENABLED
+    xTaskCreate(cmsis_dap_bt_task, "cmsis_dap_bt_task", 4096, NULL, 5, NULL);
 #endif
 
     xTaskCreate(cmsis_dap_tcp_task, "cmsis_dap_tcp_task", 4096, NULL, 5, NULL);

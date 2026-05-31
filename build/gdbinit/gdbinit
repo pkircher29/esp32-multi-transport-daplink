@@ -1,0 +1,2 @@
+source C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/build/gdbinit/symbols
+source C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/build/gdbinit/connect

@@ -1,0 +1,94 @@
+Command: ninja all
+[0/1] Re-running CMake...
+-- Component directory C:/Espressif/frameworks/esp-idf-v5.5/components/esp_blockdev does not contain a CMakeLists.txt file. No component will be added
+-- Minimal build - ON
+-- ccache will be used for faster recompilation
+-- Building ESP-IDF components for target esp32s3
+NOTICE: Processing 1 dependencies:
+NOTICE: [1/1] idf (5.5.4)
+-- ESP-TEE is currently supported only on the esp32c6;esp32h2;esp32c5 SoCs
+-- Project sdkconfig file C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/sdkconfig
+-- Compiler supported targets: xtensa-esp-elf
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- USING O3
+-- App "cmsis_dap_tcp_esp32" version: 6764a14-dirty
+-- Adding linker script C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/build/esp-idf/esp_system/ld/memory.ld
+-- Adding linker script C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/build/esp-idf/esp_system/ld/sections.ld.in
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.api.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.bt_funcs.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.libgcc.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.wdt.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.version.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.ble_master.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.ble_50.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.ble_smp.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.ble_dtm.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.ble_test.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.ble_scan.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.libc.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.newlib.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/soc/esp32s3/ld/esp32s3.peripherals.ld
+-- Components: app_update bootloader bootloader_support cxx driver efuse esp_app_format esp_bootloader_format esp_coex esp_common esp_driver_ana_cmpr esp_driver_bitscrambler esp_driver_dac esp_driver_gpio esp_driver_gptimer esp_driver_i2c esp_driver_i2s esp_driver_ledc esp_driver_mcpwm esp_driver_parlio esp_driver_pcnt esp_driver_rmt esp_driver_sdio esp_driver_sdm esp_driver_sdmmc esp_driver_sdspi esp_driver_spi esp_driver_tsens esp_driver_twai esp_driver_uart esp_driver_usb_serial_jtag esp_event esp_hw_support esp_mm esp_netif esp_netif_stack esp_partition esp_phy esp_pm esp_psram esp_ringbuf esp_rom esp_security esp_system esp_timer esp_vfs_console esp_wifi esptool_py freertos hal heap log lwip main mbedtls newlib nvs_flash partition_table pthread sdmmc soc spi_flash vfs wpa_supplicant xtensa
+-- Component paths: C:/Espressif/frameworks/esp-idf-v5.5/components/app_update C:/Espressif/frameworks/esp-idf-v5.5/components/bootloader C:/Espressif/frameworks/esp-idf-v5.5/components/bootloader_support C:/Espressif/frameworks/esp-idf-v5.5/components/cxx C:/Espressif/frameworks/esp-idf-v5.5/components/driver C:/Espressif/frameworks/esp-idf-v5.5/components/efuse C:/Espressif/frameworks/esp-idf-v5.5/components/esp_app_format C:/Espressif/frameworks/esp-idf-v5.5/components/esp_bootloader_format C:/Espressif/frameworks/esp-idf-v5.5/components/esp_coex C:/Espressif/frameworks/esp-idf-v5.5/components/esp_common C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_ana_cmpr C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_bitscrambler C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_dac C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_gpio C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_gptimer C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_i2c C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_i2s C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_ledc C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_mcpwm C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_parlio C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_pcnt C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_rmt C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_sdio C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_sdm C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_sdmmc C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_sdspi C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_spi C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_tsens C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_twai C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_uart C:/Espressif/frameworks/esp-idf-v5.5/components/esp_driver_usb_serial_jtag C:/Espressif/frameworks/esp-idf-v5.5/components/esp_event C:/Espressif/frameworks/esp-idf-v5.5/components/esp_hw_support C:/Espressif/frameworks/esp-idf-v5.5/components/esp_mm C:/Espressif/frameworks/esp-idf-v5.5/components/esp_netif C:/Espressif/frameworks/esp-idf-v5.5/components/esp_netif_stack C:/Espressif/frameworks/esp-idf-v5.5/components/esp_partition C:/Espressif/frameworks/esp-idf-v5.5/components/esp_phy C:/Espressif/frameworks/esp-idf-v5.5/components/esp_pm C:/Espressif/frameworks/esp-idf-v5.5/components/esp_psram C:/Espressif/frameworks/esp-idf-v5.5/components/esp_ringbuf C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom C:/Espressif/frameworks/esp-idf-v5.5/components/esp_security C:/Espressif/frameworks/esp-idf-v5.5/components/esp_system C:/Espressif/frameworks/esp-idf-v5.5/components/esp_timer C:/Espressif/frameworks/esp-idf-v5.5/components/esp_vfs_console C:/Espressif/frameworks/esp-idf-v5.5/components/esp_wifi C:/Espressif/frameworks/esp-idf-v5.5/components/esptool_py C:/Espressif/frameworks/esp-idf-v5.5/components/freertos C:/Espressif/frameworks/esp-idf-v5.5/components/hal C:/Espressif/frameworks/esp-idf-v5.5/components/heap C:/Espressif/frameworks/esp-idf-v5.5/components/log C:/Espressif/frameworks/esp-idf-v5.5/components/lwip C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/main C:/Espressif/frameworks/esp-idf-v5.5/components/mbedtls C:/Espressif/frameworks/esp-idf-v5.5/components/newlib C:/Espressif/frameworks/esp-idf-v5.5/components/nvs_flash C:/Espressif/frameworks/esp-idf-v5.5/components/partition_table C:/Espressif/frameworks/esp-idf-v5.5/components/pthread C:/Espressif/frameworks/esp-idf-v5.5/components/sdmmc C:/Espressif/frameworks/esp-idf-v5.5/components/soc C:/Espressif/frameworks/esp-idf-v5.5/components/spi_flash C:/Espressif/frameworks/esp-idf-v5.5/components/vfs C:/Espressif/frameworks/esp-idf-v5.5/components/wpa_supplicant C:/Espressif/frameworks/esp-idf-v5.5/components/xtensa
+-- Configuring done (5.9s)
+-- Generating done (0.8s)
+-- Build files have been written to: C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/build
+[1/10] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/main.c.obj
+[2/10] Linking C static library esp-idf\main\libmain.a
+[3/10] Generating esp-idf/esp_system/ld/sections.ld
+warning: the choice symbol FREERTOS_RUN_TIME_COUNTER_TYPE_U64 (defined at C:/Espressif/frameworks/esp-idf-v5.5/components/freertos/Kconfig:313) is selected by the following symbols, but select/imply has no effect on choice symbols
+ - ESP_PRINT_CPU_USAGE (defined at C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/main/Kconfig.projbuild:355)
+[4/10] Performing build step for 'bootloader'
+[0/1] Re-running CMake...
+-- Component directory C:/Espressif/frameworks/esp-idf-v5.5/components/esp_blockdev does not contain a CMakeLists.txt file. No component will be added
+-- Minimal build - OFF
+-- Building ESP-IDF components for target esp32s3
+-- ESP-TEE is currently supported only on the esp32c6;esp32h2;esp32c5 SoCs
+-- Project sdkconfig file C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/sdkconfig
+-- Compiler supported targets: xtensa-esp-elf
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/soc/esp32s3/ld/esp32s3.peripherals.ld
+-- Bootloader project name: "bootloader" version: 1
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.api.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.bt_funcs.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.libgcc.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.wdt.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.version.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.libc.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom/esp32s3/ld/esp32s3.rom.newlib.ld
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/bootloader/subproject/main/ld/esp32s3/bootloader.rom.ld
+-- Components: bootloader bootloader_support efuse esp_app_format esp_bootloader_format esp_common esp_hw_support esp_rom esp_security esp_system esptool_py freertos hal log main micro-ecc newlib partition_table soc spi_flash xtensa
+-- Component paths: C:/Espressif/frameworks/esp-idf-v5.5/components/bootloader C:/Espressif/frameworks/esp-idf-v5.5/components/bootloader_support C:/Espressif/frameworks/esp-idf-v5.5/components/efuse C:/Espressif/frameworks/esp-idf-v5.5/components/esp_app_format C:/Espressif/frameworks/esp-idf-v5.5/components/esp_bootloader_format C:/Espressif/frameworks/esp-idf-v5.5/components/esp_common C:/Espressif/frameworks/esp-idf-v5.5/components/esp_hw_support C:/Espressif/frameworks/esp-idf-v5.5/components/esp_rom C:/Espressif/frameworks/esp-idf-v5.5/components/esp_security C:/Espressif/frameworks/esp-idf-v5.5/components/esp_system C:/Espressif/frameworks/esp-idf-v5.5/components/esptool_py C:/Espressif/frameworks/esp-idf-v5.5/components/freertos C:/Espressif/frameworks/esp-idf-v5.5/components/hal C:/Espressif/frameworks/esp-idf-v5.5/components/log C:/Espressif/frameworks/esp-idf-v5.5/components/bootloader/subproject/main C:/Espressif/frameworks/esp-idf-v5.5/components/bootloader/subproject/components/micro-ecc C:/Espressif/frameworks/esp-idf-v5.5/components/newlib C:/Espressif/frameworks/esp-idf-v5.5/components/partition_table C:/Espressif/frameworks/esp-idf-v5.5/components/soc C:/Espressif/frameworks/esp-idf-v5.5/components/spi_flash C:/Espressif/frameworks/esp-idf-v5.5/components/xtensa
+-- Adding linker script C:/Espressif/frameworks/esp-idf-v5.5/components/bootloader/subproject/main/ld/esp32s3/bootloader.ld
+-- Configuring done (5.3s)
+-- Generating done (0.2s)
+-- Build files have been written to: C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/build/bootloader
+[1/2] C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\Paul\GITHUB\cmsis_dap_tcp_esp32\build\bootloader\esp-idf\esptool_py && C:\Espressif\python_env\idf5.5_py3.14_env\Scripts\python.exe C:/Espressif/frameworks/esp-idf-v5.5/components/partition_table/check_sizes.py --offset 0x8000 bootloader 0x0 C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/build/bootloader/bootloader.bin"
+Bootloader binary size 0x51e0 bytes. 0x2e20 bytes (36%) free.
+[5/10] No install step for 'bootloader'
+[6/10] Completed 'bootloader'
+[7/10] Linking CXX executable cmsis_dap_tcp_esp32.elf
+[8/10] Generating binary image from built executable
+esptool.py v4.12.dev2
+Creating esp32s3 image...
+Merged 2 ELF sections
+Successfully created esp32s3 image.
+Generated C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/build/cmsis_dap_tcp_esp32.bin
+[9/10] C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\Paul\GITHUB\cmsis_dap_tcp_esp32\build\esp-idf\esptool_py && C:\Espressif\python_env\idf5.5_py3.14_env\Scripts\python.exe C:/Espressif/frameworks/esp-idf-v5.5/components/partition_table/check_sizes.py --offset 0x8000 partition --type app C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/build/partition_table/partition-table.bin C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/build/cmsis_dap_tcp_esp32.bin"
+cmsis_dap_tcp_esp32.bin binary size 0xb2550 bytes. Smallest app partition is 0x100000 bytes. 0x4dab0 bytes (30%) free.

@@ -357,6 +357,21 @@ static const char *DASHBOARD_HTML = R"html(
             <div class="card" style="grid-column: span 2;">
                 <h2>🖥️ Web Serial Console</h2>
                 <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">Live interactive console with the target device on UART1 (115200 baud).</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 15px;">
+                    <div style="flex: 1; min-width: 250px; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #eee;">
+                        <h3 style="font-size: 1.05em; color: #333; margin-bottom: 10px;">🔌 UART Bridge Connection Guide</h3>
+                        <div class="stat" style="font-family: monospace; font-size: 0.9em; color: #444; line-height: 1.6;">
+                            <div><b>Airtap Pin</b> &nbsp;&nbsp;&nbsp; ➡️ &nbsp; <b>Target MCU Pin</b></div>
+                            <hr style="margin: 5px 0; border: none; border-top: 1px solid #ddd;">
+                            <div>GPIO 16 (TXD) ➡️ &nbsp; RXD (Receive)</div>
+                            <div>GPIO 15 (RXD) ➡️ &nbsp; TXD (Transmit)</div>
+                            <div>GND &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ➡️ &nbsp; GND (Common)</div>
+                        </div>
+                    </div>
+                    <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column; justify-content: center; color: #666; font-size: 0.9em; line-height: 1.5;">
+                        <p>💡 <b>Note:</b> Connect your target MCU's Transmit (TXD) pin to Airtap's Receive (RXD / GPIO 15) pin, and the target's Receive (RXD) pin to Airtap's Transmit (TXD / GPIO 16) pin. Ensure a common Ground connection is established.</p>
+                    </div>
+                </div>
                 <div id="terminal-container" style="background: #000; padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #333;">
                     <div id="terminal" style="background: #000; color: #0f0; font-family: monospace; height: 300px; overflow-y: scroll; line-height: 1.4; white-space: pre-wrap; font-size: 0.9em; box-shadow: inset 0 0 10px rgba(0,255,0,0.5); padding: 5px; border: none; outline: none;"></div>
                     <div style="display: flex; gap: 10px; margin-top: 5px;">

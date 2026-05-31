@@ -195,6 +195,22 @@ static const char *DASHBOARD_HTML = R"html(
             0%, 100% { transform: scale(0.8); opacity: 0.5; }
             50% { transform: scale(1); opacity: 1; }
         }
+        #terminal-container:fullscreen {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-sizing: border-box;
+            border: none;
+            border-radius: 0;
+        }
+        #terminal-container:fullscreen #terminal {
+            flex: 1 !important;
+            height: 100% !important;
+        }
     </style>
 </head>
 <body>
@@ -341,11 +357,14 @@ static const char *DASHBOARD_HTML = R"html(
             <div class="card" style="grid-column: span 2;">
                 <h2>🖥️ Web Serial Console</h2>
                 <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">Live interactive console with the target device on UART1 (115200 baud).</p>
-                <div id="terminal" style="background: #000; color: #0f0; font-family: monospace; padding: 15px; border-radius: 8px; height: 300px; overflow-y: scroll; border: 1px solid #333; line-height: 1.4; white-space: pre-wrap; font-size: 0.9em; box-shadow: inset 0 0 10px rgba(0,255,0,0.5);"></div>
-                <div style="display: flex; gap: 10px; margin-top: 15px;">
-                    <input type="text" id="terminal-input" placeholder="Type command here and press Enter..." style="flex: 1; padding: 10px; border: 1px solid #333; background: #111; color: #0f0; border-radius: 6px; font-family: monospace; outline: none; font-size: 0.9em;" onkeydown="handleTerminalKey(event)">
-                    <button class="btn btn-primary" onclick="sendTerminalCommand()" style="flex: 0 0 100px;">Send</button>
-                    <button class="btn btn-danger" onclick="clearTerminal()" style="flex: 0 0 100px; background-color: #555;">Clear</button>
+                <div id="terminal-container" style="background: #000; padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #333;">
+                    <div id="terminal" style="background: #000; color: #0f0; font-family: monospace; height: 300px; overflow-y: scroll; line-height: 1.4; white-space: pre-wrap; font-size: 0.9em; box-shadow: inset 0 0 10px rgba(0,255,0,0.5); padding: 5px; border: none; outline: none;"></div>
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <input type="text" id="terminal-input" placeholder="Type command here and press Enter..." style="flex: 1; padding: 10px; border: 1px solid #333; background: #111; color: #0f0; border-radius: 6px; font-family: monospace; outline: none; font-size: 0.9em;" onkeydown="handleTerminalKey(event)">
+                        <button class="btn btn-primary" onclick="sendTerminalCommand()" style="flex: 0 0 100px;">Send</button>
+                        <button class="btn btn-success" onclick="toggleFullscreen()" style="flex: 0 0 110px; background-color: #4CAF50;" id="fs-btn">Fullscreen</button>
+                        <button class="btn btn-danger" onclick="clearTerminal()" style="flex: 0 0 100px; background-color: #555;">Clear</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -615,6 +634,29 @@ static const char *DASHBOARD_HTML = R"html(
         function clearTerminal() {
             document.getElementById('terminal').innerHTML = '';
         }
+
+        function toggleFullscreen() {
+            const container = document.getElementById('terminal-container');
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(err => {
+                    console.error(`Error enabling fullscreen: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Listen for fullscreen change event to keep button state in sync
+        document.addEventListener('fullscreenchange', () => {
+            const fsBtn = document.getElementById('fs-btn');
+            if (document.fullscreenElement) {
+                fsBtn.textContent = 'Exit';
+                fsBtn.style.backgroundColor = '#f44336';
+            } else {
+                fsBtn.textContent = 'Fullscreen';
+                fsBtn.style.backgroundColor = '#4CAF50';
+            }
+        });
 
         function showMsg(id, text, color) {
             const el = document.getElementById(id);

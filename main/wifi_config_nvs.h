@@ -18,7 +18,7 @@ typedef struct {
     char ssid[WIFI_SSID_MAX_LEN];
     char password[WIFI_PASSWORD_MAX_LEN];
     bool configured;
-} wifi_config_t;
+} custom_wifi_config_t;
 
 /**
  * @brief Initialize NVS and load WiFi configuration
@@ -36,7 +36,7 @@ bool wifi_config_init(void);
  * @param config Output buffer for configuration
  * @return true if successful, false otherwise
  */
-bool wifi_config_get(wifi_config_t *config);
+bool wifi_config_get(custom_wifi_config_t *config);
 
 /**
  * @brief Save WiFi configuration to NVS

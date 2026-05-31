@@ -6,6 +6,7 @@ set(COMPONENT_SRCS
     "SW_DP.c"
     "UART.c"
     "cmsis_dap_tcp.c"
+    "wifi_config_nvs.c"
     "main.c")
 
 if(CONFIG_ESP_UART_BRIDGE_ENABLED)
@@ -20,6 +21,14 @@ if(CONFIG_ESP_CMSIS_DAP_BT_ENABLED)
     list(APPEND COMPONENT_SRCS "cmsis_dap_bt.c")
 endif()
 
+if(CONFIG_ESP_CMSIS_DAP_BLE_ENABLED)
+    list(APPEND COMPONENT_SRCS "cmsis_dap_ble.c")
+endif()
+
+if(CONFIG_ESP_WEB_DASHBOARD_ENABLED)
+    list(APPEND COMPONENT_SRCS "web_dashboard.cpp" "wifi_config_api.c")
+endif()
+
 if(CONFIG_ESP_PRINT_CPU_USAGE)
     list(APPEND COMPONENT_SRCS "cpu_usage.c")
 endif()
@@ -32,4 +41,10 @@ idf_component_register(SRCS ${COMPONENT_SRCS}
                        REQUIRES esp_timer
                        REQUIRES esp_wifi
                        REQUIRES nvs_flash
+                       REQUIRES esp_tinyusb
+                       REQUIRES bt
+                       REQUIRES json
+                       REQUIRES esp_http_server
+                       REQUIRES mdns
+                       REQUIRES app_update
                        INCLUDE_DIRS "")

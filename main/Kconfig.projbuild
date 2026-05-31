@@ -123,6 +123,29 @@ menu "CMSIS-DAP configuration"
 
     endmenu
 
+    menu "Bluetooth LE (BLE) configuration"
+
+        config ESP_CMSIS_DAP_BLE_ENABLED
+            bool "Enable Bluetooth Low Energy (BLE) Transport"
+            default n
+            help
+                Start a Bluetooth Low Energy (BLE) GATT server for wireless CMSIS-DAP access.
+                This requires Bluetooth capability on the ESP32.
+                Allows debugging over BLE (useful for ESP32-S3 and ESP32-C6).
+
+    endmenu
+
+    menu "Web Dashboard configuration"
+
+        config ESP_WEB_DASHBOARD_ENABLED
+            bool "Enable Web Dashboard and WiFi Config API"
+            default n
+            help
+                Start a web-based status dashboard on port 80 and a REST API
+                for dynamic WiFi credential configuration saved to NVS.
+
+    endmenu
+
     menu "UART to TCP/IP bridge"
 
         config ESP_UART_BRIDGE_ENABLED

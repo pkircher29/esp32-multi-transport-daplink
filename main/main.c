@@ -63,6 +63,7 @@
 #include "lwip/prot/dhcp6.h"
 #include "lwip/sys.h"
 #include "nvs_flash.h"
+#include "lwip/sockets.h"
 
 #include "esp_netif_net_stack.h"
 
@@ -70,7 +71,11 @@
 #include "cmsis_dap_tcp.h"
 #include "cmsis_dap_usb.h"
 #include "cmsis_dap_bt.h"
+#include "cmsis_dap_ble.h"
+#include "web_dashboard.h"
+#include "wifi_config_nvs.h"
 #include "uart_bridge.h"
+#include "mdns.h"
 
 #define WIFI_SSID               CONFIG_ESP_WIFI_SSID
 #define WIFI_PASSWORD           CONFIG_ESP_WIFI_PASSWORD
@@ -127,6 +132,8 @@ static int wifi_retry_num;
 static EventGroupHandle_t wifi_event_group;
 static bool cmsis_dap_tcp_initialized;
 static esp_netif_t *sta_netif;
+static esp_netif_t *ap_netif = NULL;
+static TaskHandle_t dns_task_handle = NULL;
 
 static void reboot(void)
 {
@@ -190,6 +197,171 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 #endif
 }
 
+static void dns_server_task(void *pvParameters)
+{
+    uint8_t rx_buffer[512];
+    uint8_t tx_buffer[512];
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
+
+    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (sock < 0) {
+        printf("DNS_SERVER: Unable to create socket\n");
+        dns_task_handle = NULL;
+        vTaskDelete(NULL);
+        return;
+    }
+
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(53); // DNS UDP port 53
+
+    if (bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        printf("DNS_SERVER: Socket unable to bind to port 53\n");
+        close(sock);
+        dns_task_handle = NULL;
+        vTaskDelete(NULL);
+        return;
+    }
+
+    printf("DNS redirect server started on port 53\n");
+
+    while (1) {
+        // Self-terminate if we are no longer in AP mode (switched back to STA)
+        wifi_mode_t current_mode;
+        if (esp_wifi_get_mode(&current_mode) == ESP_OK && current_mode != WIFI_MODE_AP) {
+            printf("DNS_SERVER: WiFi mode changed, stopping DNS server\n");
+            break;
+        }
+
+        // Set socket timeout so it doesn't block indefinitely (allowing quick exit)
+        struct timeval tv = {
+            .tv_sec = 2,
+            .tv_usec = 0
+        };
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+        int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer), 0, (struct sockaddr *)&client_addr, &client_addr_len);
+        if (len < 12) {
+            continue;
+        }
+
+        // DNS Header
+        uint16_t id = *(uint16_t *)&rx_buffer[0];
+        uint16_t flags = *(uint16_t *)&rx_buffer[2];
+        uint16_t qdcount = ntohs(*(uint16_t *)&rx_buffer[4]);
+
+        // Standard query response logic
+        if ((flags & 0x8000) == 0 && qdcount > 0) {
+            memset(tx_buffer, 0, sizeof(tx_buffer));
+            
+            // Response header
+            *(uint16_t *)&tx_buffer[0] = id;
+            *(uint16_t *)&tx_buffer[2] = htons(0x8180); // Standard Query Response, No Error
+            *(uint16_t *)&tx_buffer[4] = htons(1);      // 1 Question
+            *(uint16_t *)&tx_buffer[6] = htons(1);      // 1 Answer
+            
+            // Skip query name
+            int offset = 12;
+            while (offset < len && rx_buffer[offset] != 0) {
+                offset += rx_buffer[offset] + 1;
+            }
+            offset += 5; // NULL byte, QTYPE (2 bytes), QCLASS (2 bytes)
+            
+            if (offset <= len && offset < 250) {
+                // Copy question section
+                memcpy(tx_buffer + 12, rx_buffer + 12, offset - 12);
+                
+                // Construct answer
+                int ans_offset = offset;
+                tx_buffer[ans_offset] = 0xc0;     // Pointer to question name
+                tx_buffer[ans_offset + 1] = 0x0c; // at offset 12
+                
+                *(uint16_t *)&tx_buffer[ans_offset + 2] = htons(1);  // Type A (IPv4)
+                *(uint16_t *)&tx_buffer[ans_offset + 4] = htons(1);  // Class IN
+                *(uint32_t *)&tx_buffer[ans_offset + 6] = htonl(60); // TTL = 60s
+                *(uint16_t *)&tx_buffer[ans_offset + 10] = htons(4); // RDLENGTH = 4
+                
+                // RDATA: 192.168.4.1 (ESP32 SoftAP IP)
+                tx_buffer[ans_offset + 12] = 192;
+                tx_buffer[ans_offset + 13] = 168;
+                tx_buffer[ans_offset + 14] = 4;
+                tx_buffer[ans_offset + 15] = 1;
+                
+                sendto(sock, tx_buffer, ans_offset + 16, 0, (struct sockaddr *)&client_addr, client_addr_len);
+            }
+        }
+    }
+
+    close(sock);
+    dns_task_handle = NULL;
+    vTaskDelete(NULL);
+}
+
+static void initialize_mdns(void)
+{
+    static bool mdns_initialized = false;
+    if (mdns_initialized) {
+        return;
+    }
+    
+    esp_err_t err = mdns_init();
+    if (err != ESP_OK) {
+        printf("mDNS Init failed: %d\n", err);
+        return;
+    }
+    
+    mdns_hostname_set("airtap");
+    mdns_instance_name_set("ESP32 CMSIS-DAP Debugger (Airtap)");
+    
+    mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
+    mdns_service_add(NULL, "_cmsis-dap", "_tcp", 4441, NULL, 0);
+    
+    mdns_initialized = true;
+    printf("mDNS responder started! Device discoverable at http://airtap.local/\n");
+}
+
+static void wifi_start_ap(void)
+{
+    printf("Starting Access Point (SoftAP) fallback mode...\n");
+    
+    // Stop WiFi to change configuration
+    esp_wifi_stop();
+    
+    if (ap_netif == NULL) {
+        ap_netif = esp_netif_create_default_wifi_ap();
+    }
+    
+    wifi_config_t ap_config = {
+        .ap = {
+            .ssid = {0},
+            .ssid_len = 0,
+            .channel = 1,
+            .password = "",
+            .max_connection = 4,
+            .authmode = WIFI_AUTH_OPEN,
+        },
+    };
+    
+    // Create custom SSID using device MAC suffix so multiple devices don't collide
+    snprintf((char *)ap_config.ap.ssid, sizeof(ap_config.ap.ssid), "ESP32-DAPLink-%s", mac_addr_str + 6);
+    ap_config.ap.ssid_len = strlen((char *)ap_config.ap.ssid);
+    
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+    
+    printf("Access Point started! SSID: '%s'\n", ap_config.ap.ssid);
+    printf("Connect to this network and navigate to: http://192.168.4.1/dashboard\n");
+
+    // Start DNS server task for captive portal redirection
+    if (dns_task_handle == NULL) {
+        xTaskCreate(dns_server_task, "dns_server_task", 4096, NULL, 4, &dns_task_handle);
+    }
+
+    initialize_mdns();
+}
+
 int wifi_init(void)
 {
     wifi_event_group = xEventGroupCreate();
@@ -224,10 +396,13 @@ int wifi_init(void)
                 NULL,
                 &instance_got_ip));
 #endif
+    custom_wifi_config_t nvs_cfg;
+    wifi_config_get(&nvs_cfg);
+
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = WIFI_SSID,
-            .password = WIFI_PASSWORD,
+            .ssid = {0},
+            .password = {0},
             /* Authmode threshold resets to WPA2 as default if password matches
              * WPA2 standards (password len => 8).  If you want to connect the
              * device to deprecated WEP/WPA networks, Please set the threshold
@@ -240,6 +415,8 @@ int wifi_init(void)
             .sae_h2e_identifier = EXAMPLE_H2E_IDENTIFIER,
         },
     };
+    strlcpy((char *)wifi_config.sta.ssid, nvs_cfg.ssid, sizeof(wifi_config.sta.ssid));
+    strlcpy((char *)wifi_config.sta.password, nvs_cfg.password, sizeof(wifi_config.sta.password));
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
     ESP_ERROR_CHECK(esp_wifi_start());
@@ -328,12 +505,17 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
+    // Initialize custom wifi NVS configuration
+    wifi_config_init();
+
     /* Initialize WiFi and connect to AP. If unable to connect after retries,
-     * then force a reboot in an attempt to recover.
+     * fall back to Access Point mode for setup.
      */
     if (wifi_init() != 0) {
-        printf("Restarting due to WiFi connection failures.\n");
-        reboot();
+        wifi_start_ap();
+    } else {
+        printf("WiFi Station connected successfully.\n");
+        initialize_mdns();
     }
 
 #ifdef CONFIG_ESP_UART_BRIDGE_ENABLED
@@ -346,6 +528,14 @@ void app_main(void)
 
 #ifdef CONFIG_ESP_CMSIS_DAP_BT_ENABLED
     xTaskCreate(cmsis_dap_bt_task, "cmsis_dap_bt_task", 4096, NULL, 5, NULL);
+#endif
+
+#ifdef CONFIG_ESP_CMSIS_DAP_BLE_ENABLED
+    cmsis_dap_ble_init();
+#endif
+
+#ifdef CONFIG_ESP_WEB_DASHBOARD_ENABLED
+    web_dashboard_init();
 #endif
 
     xTaskCreate(cmsis_dap_tcp_task, "cmsis_dap_tcp_task", 4096, NULL, 5, NULL);

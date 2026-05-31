@@ -8,7 +8,7 @@ static const char *TAG = "WIFI_CONFIG_API";
 
 // GET /api/wifi/config - Get current configuration
 static esp_err_t wifi_config_get_handler(httpd_req_t *req) {
-    wifi_config_t config = {0};
+    custom_wifi_config_t config = {0};
     if (!wifi_config_get(&config)) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to get config");
         return ESP_FAIL;

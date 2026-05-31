@@ -1,3 +1,4 @@
+#include "sdkconfig.h"
 #include "wifi_config_nvs.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
@@ -11,11 +12,7 @@ static const char *NVS_NAMESPACE = "wifi_config";
 static const char *NVS_KEY_SSID = "ssid";
 static const char *NVS_KEY_PASSWORD = "password";
 
-// Default values from menuconfig (fallback)
-extern const char CONFIG_ESP_WIFI_SSID[];
-extern const char CONFIG_ESP_WIFI_PASSWORD[];
-
-static wifi_config_t current_config = {0};
+static custom_wifi_config_t current_config = {0};
 static bool nvs_initialized = false;
 
 bool wifi_config_init(void) {
@@ -58,8 +55,8 @@ bool wifi_config_init(void) {
     }
 
     // No valid config in NVS, use defaults from menuconfig
-    strncpy(current_config.ssid, CONFIG_ESP_WIFI_SSID, sizeof(current_config.ssid) - 1);
-    strncpy(current_config.password, CONFIG_ESP_WIFI_PASSWORD, sizeof(current_config.password) - 1);
+    strlcpy(current_config.ssid, CONFIG_ESP_WIFI_SSID, sizeof(current_config.ssid));
+    strlcpy(current_config.password, CONFIG_ESP_WIFI_PASSWORD, sizeof(current_config.password));
     current_config.configured = false;  // Indicates using defaults, not custom
     
     ESP_LOGI(TAG, "Using default WiFi config from menuconfig: %s", current_config.ssid);
@@ -68,12 +65,12 @@ bool wifi_config_init(void) {
     return true;
 }
 
-bool wifi_config_get(wifi_config_t *config) {
+bool wifi_config_get(custom_wifi_config_t *config) {
     if (!config || !nvs_initialized) {
         return false;
     }
 
-    memcpy(config, &current_config, sizeof(wifi_config_t));
+    memcpy(config, &current_config, sizeof(custom_wifi_config_t));
     return true;
 }
 
@@ -122,8 +119,8 @@ bool wifi_config_set(const char *ssid, const char *password) {
     }
 
     // Update in-memory config
-    strncpy(current_config.ssid, ssid, sizeof(current_config.ssid) - 1);
-    strncpy(current_config.password, password, sizeof(current_config.password) - 1);
+    strlcpy(current_config.ssid, ssid, sizeof(current_config.ssid));
+    strlcpy(current_config.password, password, sizeof(current_config.password));
     current_config.configured = true;
 
     ESP_LOGI(TAG, "WiFi config saved to NVS: %s", ssid);
@@ -145,8 +142,8 @@ bool wifi_config_reset(void) {
     }
 
     // Reset to defaults
-    strncpy(current_config.ssid, CONFIG_ESP_WIFI_SSID, sizeof(current_config.ssid) - 1);
-    strncpy(current_config.password, CONFIG_ESP_WIFI_PASSWORD, sizeof(current_config.password) - 1);
+    strlcpy(current_config.ssid, CONFIG_ESP_WIFI_SSID, sizeof(current_config.ssid));
+    strlcpy(current_config.password, CONFIG_ESP_WIFI_PASSWORD, sizeof(current_config.password));
     current_config.configured = false;
 
     ESP_LOGI(TAG, "WiFi config reset to defaults");
@@ -164,25 +161,32 @@ bool wifi_config_reconnect(void) {
         .password = {0},
     };
     
-    strncpy((char *)sta_config.ssid, current_config.ssid, sizeof(sta_config.ssid) - 1);
-    strncpy((char *)sta_config.password, current_config.password, sizeof(sta_config.password) - 1);
+    strlcpy((char *)sta_config.ssid, current_config.ssid, sizeof(sta_config.ssid));
+    strlcpy((char *)sta_config.password, current_config.password, sizeof(sta_config.password));
 
     // Apply new config
     wifi_config_t wifi_config = {
         .sta = sta_config,
     };
     
-    esp_err_t ret = esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config);
+    // Stop WiFi, change mode to STA, apply config, start and connect
+    esp_wifi_stop();
+    esp_err_t ret = esp_wifi_set_mode(WIFI_MODE_STA);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set WiFi mode to STA: %s", esp_err_to_name(ret));
+        return false;
+    }
+    
+    ret = esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set WiFi config: %s", esp_err_to_name(ret));
         return false;
     }
 
-    // Disconnect and reconnect
-    esp_wifi_disconnect();
+    esp_wifi_start();
     esp_wifi_connect();
 
-    ESP_LOGI(TAG, "WiFi reconnection initiated with SSID: %s", current_config.ssid);
+    ESP_LOGI(TAG, "WiFi mode switched to STA and reconnection initiated with SSID: %s", current_config.ssid);
     return true;
 }
 

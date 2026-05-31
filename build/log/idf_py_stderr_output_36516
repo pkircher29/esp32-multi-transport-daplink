@@ -1,3 +1,0 @@
-Command: cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=C:\Espressif\python_env\idf5.5_py3.14_env\Scripts\python.exe -DESP_PLATFORM=1 -DCCACHE_ENABLE=1 C:\Users\Paul\GITHUB\cmsis_dap_tcp_esp32
-warning: the choice symbol FREERTOS_RUN_TIME_COUNTER_TYPE_U64 (defined at C:/Espressif/frameworks/esp-idf-v5.5/components/freertos/Kconfig:313) is selected by the following symbols, but select/imply has no effect on choice symbols
- - ESP_PRINT_CPU_USAGE (defined at C:/Users/Paul/GITHUB/cmsis_dap_tcp_esp32/main/Kconfig.projbuild:329)

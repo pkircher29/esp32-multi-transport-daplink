@@ -16,9 +16,9 @@
 static const char *TAG = "CMSIS_DAP_BLE";
 
 // CMSIS-DAP BLE UUIDs
-#define CMSIS_DAP_BLE_SERVICE_UUID          0x6e7f, 0x1c99, 0x4b7d, 0x95, 0x7a, 0xeb, 0x3f, 0x1d, 0x0b, 0x28, 0xa4
-#define CMSIS_DAP_BLE_RX_CHAR_UUID          0x6e7f, 0x1c99, 0x4b7e, 0x95, 0x7a, 0xeb, 0x3f, 0x1d, 0x0b, 0x28, 0xa4
-#define CMSIS_DAP_BLE_TX_CHAR_UUID          0x6e7f, 0x1c99, 0x4b7f, 0x95, 0x7a, 0xeb, 0x3f, 0x1d, 0x0b, 0x28, 0xa4
+#define CMSIS_DAP_BLE_SERVICE_UUID          0x7f, 0x6e, 0x99, 0x1c, 0x7d, 0x4b, 0x95, 0x7a, 0xeb, 0x3f, 0x1d, 0x0b, 0x28, 0xa4, 0x00, 0x00
+#define CMSIS_DAP_BLE_RX_CHAR_UUID          0x7f, 0x6e, 0x99, 0x1c, 0x7e, 0x4b, 0x95, 0x7a, 0xeb, 0x3f, 0x1d, 0x0b, 0x28, 0xa4, 0x00, 0x00
+#define CMSIS_DAP_BLE_TX_CHAR_UUID          0x7f, 0x6e, 0x99, 0x1c, 0x7f, 0x4b, 0x95, 0x7a, 0xeb, 0x3f, 0x1d, 0x0b, 0x28, 0xa4, 0x00, 0x00
 
 // BLE TX/RX data structures
 #define BLE_RX_QUEUE_LEN 16
@@ -136,9 +136,59 @@ static const struct ble_gatt_svc_def gatt_svc_def[] = {
     {0}  // End of services
 };
 
+static void ble_advertise(void);
+
 // BLE host complete callback
 static void ble_host_complete_callback(void) {
-    ESP_LOGI(TAG, "BLE host synced");
+    ESP_LOGI(TAG, "BLE host synced, starting advertising");
+    ble_advertise();
+}
+
+static void ble_hs_reset_callback(int reason) {
+    ESP_LOGW(TAG, "BLE host reset, reason=%d", reason);
+}
+
+static void ble_advertise(void) {
+    struct ble_hs_adv_fields fields;
+    memset(&fields, 0, sizeof(fields));
+
+    // Advertising flags: General discoverable, BR/EDR not supported
+    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSP;
+
+    // Set TX power level
+    fields.tx_pwr_lvl_is_present = 1;
+    fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
+
+    // Set device name
+    const char *name = ble_svc_gap_device_name();
+    if (!name) name = "ESP32-CMSIS-DAP-BLE";
+    fields.name = (uint8_t *)name;
+    fields.name_len = strlen(name);
+    fields.name_is_complete = 1;
+
+    // Set service UUID
+    fields.uuids128 = (ble_uuid128_t[]) {
+        BLE_UUID128_DECLARE(CMSIS_DAP_BLE_SERVICE_UUID)
+    };
+    fields.num_uuids128 = 1;
+    fields.uuids128_is_complete = 1;
+
+    int rc = ble_gap_adv_set_fields(&fields);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Failed to set advertising fields: %d", rc);
+        return;
+    }
+
+    struct ble_gap_adv_params adv_params = {0};
+    adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
+    adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
+
+    rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER, &adv_params, ble_gap_event_handler, NULL);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Failed to start advertising: %d", rc);
+    } else {
+        ESP_LOGI(TAG, "BLE advertising started as '%s'", name);
+    }
 }
 
 // Main task for processing BLE data
@@ -175,8 +225,9 @@ void cmsis_dap_ble_task(void *pvParameters) {
                             uint8_t response[BLE_BUFFER_SIZE];
                             uint16_t response_len = sizeof(response) - 8;
 
-                            // Call DAP processor
-                            DAP_ProcessCommand(accumulated_data + 8, pkt_len, response + 8, &response_len);
+                            // Call DAP processor (Standard ARM 2-argument API)
+                            uint32_t ret = DAP_ProcessCommand(accumulated_data + 8, response + 8);
+                            response_len = ret & 0xFFFF;
 
                             // Build response packet
                             *(uint32_t *)response = 0x00504144;
@@ -233,7 +284,7 @@ bool cmsis_dap_ble_init(void) {
     }
 
     // Configure GAP
-    ble_hs_cfg.reset_cb = ble_gap_event_handler;
+    ble_hs_cfg.reset_cb = ble_hs_reset_callback;
     ble_hs_cfg.sync_cb = ble_host_complete_callback;
     ble_hs_cfg.gatts_register_cb = NULL;
 
@@ -248,19 +299,8 @@ bool cmsis_dap_ble_init(void) {
     // Start NimBLE
     nimble_port_freertos_init(cmsis_dap_ble_task);
 
-    // Start advertising
-    struct ble_gap_adv_params adv_params = {0};
-    adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
-    adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-
-    ret = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, 30000, &adv_params);
-    if (ret != 0) {
-        ESP_LOGE(TAG, "Failed to start advertising: %d", ret);
-        return false;
-    }
-
     ble_state.initialized = true;
-    ESP_LOGI(TAG, "BLE initialized and advertising as 'ESP32-CMSIS-DAP-BLE'");
+    ESP_LOGI(TAG, "BLE initialized, awaiting host sync...");
     
     return true;
 }

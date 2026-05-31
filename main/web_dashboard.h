@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,6 +55,14 @@ void web_dashboard_update_stats(uint8_t transport_id, uint32_t bytes_received, u
  * @brief Reset all statistics
  */
 void web_dashboard_reset_stats(void);
+
+/**
+ * @brief Broadcast data to all active WebSocket terminal clients
+ * 
+ * @param data Data buffer to send
+ * @param len Length of data in bytes
+ */
+void web_dashboard_broadcast_ws(const char *data, size_t len);
 
 #ifdef __cplusplus
 }

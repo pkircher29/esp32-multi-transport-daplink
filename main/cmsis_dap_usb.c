@@ -201,9 +201,9 @@ static int usb_process_packet(const uint8_t *data, size_t len)
     const uint8_t *dap_cmd = data + DAP_PACKET_HEADER_SIZE;
     size_t dap_cmd_len = pkt_len;
 
-    // Process DAP command
-    uint32_t dap_response_len = sizeof(dap_response_buffer);
-    DAP_ProcessCommand(dap_cmd, dap_cmd_len, dap_response_buffer, &dap_response_len);
+    // Process DAP command (Standard ARM 2-argument API)
+    uint32_t ret = DAP_ProcessCommand(dap_cmd, dap_response_buffer);
+    uint32_t dap_response_len = ret & 0xFFFF;
 
     // Send response back via USB
     // Build response packet with same header format
@@ -226,7 +226,7 @@ static int usb_process_packet(const uint8_t *data, size_t len)
     }
 
     // Return number of bytes consumed
-    return DAP_PACKET_HEADER_SIZE + dap_response_len;
+    return DAP_PACKET_HEADER_SIZE + pkt_len;
 }
 
 /**

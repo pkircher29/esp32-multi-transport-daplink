@@ -596,13 +596,20 @@ static const char *DASHBOARD_HTML = R"html(
             const wsUrl = `${protocol}//${location.host}/ws`;
             
             ws = new WebSocket(wsUrl);
+            ws.binaryType = "arraybuffer";
+            const decoder = new TextDecoder('utf-8', { fatal: false });
             
             ws.onopen = () => {
                 appendTerminalText('\n*** [Airtap: Connected to serial terminal] ***\n', '#ffa000');
             };
             
             ws.onmessage = (event) => {
-                appendTerminalText(event.data);
+                if (event.data instanceof ArrayBuffer) {
+                    const text = decoder.decode(event.data);
+                    appendTerminalText(text);
+                } else {
+                    appendTerminalText(event.data);
+                }
             };
             
             ws.onclose = () => {
@@ -985,7 +992,7 @@ void web_dashboard_broadcast_ws(const char *data, size_t len) {
     memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
     ws_pkt.payload = (uint8_t *)data;
     ws_pkt.len = len;
-    ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+    ws_pkt.type = HTTPD_WS_TYPE_BINARY;
     
     for (size_t i = 0; i < clients_num; i++) {
         // Only send to active WebSocket clients to avoid corrupting standard HTTP connections

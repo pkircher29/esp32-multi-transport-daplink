@@ -988,8 +988,10 @@ void web_dashboard_broadcast_ws(const char *data, size_t len) {
     ws_pkt.type = HTTPD_WS_TYPE_TEXT;
     
     for (size_t i = 0; i < clients_num; i++) {
-        // Send WS data to all descriptors (non-WS client descs will gracefully fail without harm)
-        httpd_ws_send_data(dashboard_state.server, client_fds[i], &ws_pkt);
+        // Only send to active WebSocket clients to avoid corrupting standard HTTP connections
+        if (httpd_ws_get_fd_info(dashboard_state.server, client_fds[i]) == HTTPD_WS_CLIENT_WEBSOCKET) {
+            httpd_ws_send_data(dashboard_state.server, client_fds[i], &ws_pkt);
+        }
     }
 }
 

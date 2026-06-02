@@ -314,7 +314,11 @@ static void initialize_mdns(void)
     mdns_hostname_set("airtap");
     mdns_instance_name_set("ESP32 CMSIS-DAP Debugger (Airtap)");
     
+#if defined(CONFIG_ESP_WEB_DASHBOARD_ENABLED) && defined(CONFIG_ESP_WEB_DASHBOARD_USE_HTTPS)
+    mdns_service_add(NULL, "_https", "_tcp", 443, NULL, 0);
+#else
     mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
+#endif
     mdns_service_add(NULL, "_cmsis-dap", "_tcp", 4441, NULL, 0);
     
     mdns_initialized = true;
@@ -342,17 +346,36 @@ static void wifi_start_ap(void)
             .authmode = WIFI_AUTH_OPEN,
         },
     };
-    
+
     // Create custom SSID using device MAC suffix so multiple devices don't collide
     snprintf((char *)ap_config.ap.ssid, sizeof(ap_config.ap.ssid), "ESP32-DAPLink-%s", mac_addr_str + 6);
     ap_config.ap.ssid_len = strlen((char *)ap_config.ap.ssid);
-    
+
+    // Secure the fallback AP with WPA2 when a password (>= 8 chars) is
+    // configured. An open AP would expose the OTA endpoint, the WiFi config
+    // API and the target debug bridge to anyone in range.
+    const char *ap_pass = CONFIG_ESP_WIFI_AP_PASSWORD;
+    if (strlen(ap_pass) >= 8) {
+        strlcpy((char *)ap_config.ap.password, ap_pass,
+                sizeof(ap_config.ap.password));
+        ap_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
+        printf("Fallback AP secured with WPA2.\n");
+    } else {
+        ap_config.ap.authmode = WIFI_AUTH_OPEN;
+        printf("WARNING: fallback AP is OPEN (no password). Set "
+               "CONFIG_ESP_WIFI_AP_PASSWORD (>= 8 chars) to enable WPA2.\n");
+    }
+
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
     ESP_ERROR_CHECK(esp_wifi_start());
     
     printf("Access Point started! SSID: '%s'\n", ap_config.ap.ssid);
+#if defined(CONFIG_ESP_WEB_DASHBOARD_ENABLED) && defined(CONFIG_ESP_WEB_DASHBOARD_USE_HTTPS)
+    printf("Connect to this network and navigate to: https://192.168.4.1/dashboard\n");
+#else
     printf("Connect to this network and navigate to: http://192.168.4.1/dashboard\n");
+#endif
 
     // Start DNS server task for captive portal redirection
     if (dns_task_handle == NULL) {

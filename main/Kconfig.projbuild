@@ -14,6 +14,18 @@ menu "CMSIS-DAP configuration"
             help
                 WiFi password (WPA or WPA2) to use.
 
+        config ESP_WIFI_AP_PASSWORD
+            string "Fallback SoftAP password (WPA2)"
+            default ""
+            help
+                Password for the fallback configuration Access Point that is
+                started when the device cannot join the configured WiFi
+                network. Must be at least 8 characters to enable WPA2.
+
+                Leave empty for an OPEN access point. This is NOT recommended:
+                an open AP exposes the firmware OTA endpoint, the WiFi config
+                API and the target debug/console bridge to anyone in range.
+
         choice ESP_WIFI_SAE_MODE
             prompt "WPA3 SAE mode selection"
             default ESP_STATION_EXAMPLE_WPA3_SAE_PWE_BOTH
@@ -143,6 +155,42 @@ menu "CMSIS-DAP configuration"
             help
                 Start a web-based status dashboard on port 80 and a REST API
                 for dynamic WiFi credential configuration saved to NVS.
+
+        config ESP_WEB_DASHBOARD_USE_HTTPS
+            bool "Serve the dashboard over HTTPS (TLS)"
+            default y
+            depends on ESP_WEB_DASHBOARD_ENABLED
+            help
+                Serve the web dashboard, REST API and console WebSocket over
+                TLS (HTTPS / WSS) instead of plaintext HTTP. A self-signed
+                certificate is generated at build time (openssl required) and
+                embedded in the firmware. Browsers will warn about the
+                self-signed certificate on first connection.
+
+                Disabling this serves everything in cleartext, which is
+                trivially sniffable on the local network.
+
+        config ESP_WEB_DASHBOARD_AUTH_ENABLED
+            bool "Require HTTP Basic Auth for state-changing endpoints"
+            default y
+            depends on ESP_WEB_DASHBOARD_ENABLED
+            help
+                Require HTTP Basic authentication for the endpoints that
+                change device state: firmware OTA (/api/ota) and WiFi
+                credential changes (/api/wifi/config, /reconnect, /reset).
+                The read-only dashboard and /api/status remain open.
+
+        config ESP_WEB_DASHBOARD_AUTH_USER
+            string "Dashboard username"
+            default "admin"
+            depends on ESP_WEB_DASHBOARD_AUTH_ENABLED
+
+        config ESP_WEB_DASHBOARD_AUTH_PASS
+            string "Dashboard password"
+            default "airtap"
+            depends on ESP_WEB_DASHBOARD_AUTH_ENABLED
+            help
+                Change this from the default before deploying.
 
     endmenu
 

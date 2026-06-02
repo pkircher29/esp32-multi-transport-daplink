@@ -18,6 +18,10 @@
 
 static const char *TAG = "WEB_DASHBOARD";
 
+// Upper bound on an inbound console WebSocket frame. The terminal only sends
+// short command lines; anything larger is rejected to avoid heap exhaustion.
+#define WS_MAX_FRAME_LEN 1024
+
 // Statistics tracking
 typedef struct {
     uint32_t bytes_received;
@@ -732,37 +736,15 @@ static const char *DASHBOARD_HTML = R"html(
 
 // REST API: GET /api/status
 static esp_err_t status_handler(httpd_req_t *req) {
-    // Get WiFi status
-    wifi_ap_record_t ap_info;
-    esp_netif_ip_info_t ip_info;
-    bool wifi_connected = esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK;
-    esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"), &ip_info);
-    
-    char ip_str[16] = {0};
-    if (wifi_connected) {
-        snprintf(ip_str, sizeof(ip_str), IPSTR, IP2STR(&ip_info.ip));
+    char response[512] = {0};
+    uint16_t len = web_dashboard_get_status_json(response, sizeof(response));
+    if (len == 0) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to build status");
+        return ESP_FAIL;
     }
 
-    // Build JSON response with explicit casts to unsigned int to avoid format errors
-    char response[512] = {0};
-    snprintf(response, sizeof(response),
-        "{"
-        "\"wifi\":{\"connected\":%s,\"ip\":\"%s\",\"bytes_rx\":%u,\"bytes_tx\":%u},"
-        "\"usb\":{\"connected\":false,\"bytes_rx\":%u,\"bytes_tx\":%u},"
-        "\"bluetooth\":{\"connected\":false,\"bytes_rx\":%u,\"bytes_tx\":%u}"
-        "}",
-        wifi_connected ? "true" : "false",
-        ip_str,
-        (unsigned int)dashboard_state.stats[0].bytes_received,
-        (unsigned int)dashboard_state.stats[0].bytes_sent,
-        (unsigned int)dashboard_state.stats[1].bytes_received,
-        (unsigned int)dashboard_state.stats[1].bytes_sent,
-        (unsigned int)dashboard_state.stats[2].bytes_received,
-        (unsigned int)dashboard_state.stats[2].bytes_sent
-    );
-
     httpd_resp_set_type(req, "application/json");
-    return httpd_resp_send(req, response, strlen(response));
+    return httpd_resp_send(req, response, len);
 }
 
 // Serve dashboard HTML
@@ -954,6 +936,14 @@ static esp_err_t ws_handler(httpd_req_t *req) {
         return ret;
     }
     
+    // Reject oversized frames before allocating. The console only ever sends
+    // short command lines, so an unbounded length here would just be a way to
+    // exhaust the heap.
+    if (ws_pkt.len > WS_MAX_FRAME_LEN) {
+        ESP_LOGW(TAG, "Dropping oversized WS frame: %u bytes", (unsigned)ws_pkt.len);
+        return ESP_FAIL;
+    }
+
     if (ws_pkt.len > 0) {
         buf = (uint8_t *)calloc(1, ws_pkt.len + 1);
         if (buf == NULL) {

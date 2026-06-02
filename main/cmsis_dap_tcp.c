@@ -66,7 +66,7 @@ struct msgbuf_t {
     size_t   len;
 };
 
-struct msgbuf_t buf;
+static struct msgbuf_t buf;
 static uint8_t response[DAP_PKT_SIZE];
 static uint8_t packet_buf[DAP_TOTAL_PKT_SIZE];
 
@@ -124,6 +124,15 @@ static int msgbuf_parse(struct msgbuf_t *buf,
     if (tmp.packet_type != DAP_PKT_TYPE_REQUEST) {
         fprintf(stderr, "cmsis_dap_tcp: Unrecognized packet type 0x%02hx\n",
                 tmp.packet_type);
+        return -EINVAL;
+    }
+
+    // The request payload is processed by DAP_ProcessCommand() into a fixed
+    // response[DAP_PKT_SIZE] buffer. Reject anything larger than we can handle
+    // before processing it, to avoid overrunning that buffer.
+    if (tmp.length > DAP_PKT_SIZE) {
+        fprintf(stderr, "cmsis_dap_tcp: packet length %u exceeds max %d\n",
+                tmp.length, DAP_PKT_SIZE);
         return -EINVAL;
     }
 
@@ -231,7 +240,7 @@ static void set_keepalives(int fd)
     setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &val, sizeof(val));
 
     LOG_DEBUG("cmsis_dap_tcp: Using TCP keepalives with %d second "
-            "timeout.", CONFIG_ESP_UART_BRIDGE_KEEPALIVE_TIMEOUT);
+            "timeout.", CONFIG_ESP_DAP_TCP_KEEPALIVE_TIMEOUT);
 #endif
 }
 
@@ -388,8 +397,18 @@ void cmsis_dap_tcp_task(void *arg __attribute__((unused)))
                 size_t total_len;
                 int ret = msgbuf_parse(&buf, &hdr, &payload, &payload_len,
                         &total_len);
-                if(ret < 0)
+                if(ret == -EAGAIN)
+                    break;      // Need more data; wait for the next read.
+                if(ret < 0) {
+                    // Malformed packet (bad signature/type/length). The bad
+                    // bytes remain in the buffer, so drop the client rather
+                    // than spin reparsing the same garbage.
+                    fprintf(stdout, "cmsis_dap_tcp: malformed packet, "
+                            "disconnecting.\n");
+                    close(client_fd);
+                    client_fd = -1;
                     break;
+                }
 
                 ret = process_dap_request(client_fd, payload, payload_len);
                 msgbuf_consume(&buf, total_len);

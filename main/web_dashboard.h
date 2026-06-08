@@ -5,9 +5,25 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "esp_http_server.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * @brief Enforce HTTP Basic Auth on a request for state-changing endpoints.
+ *
+ * When CONFIG_ESP_WEB_DASHBOARD_AUTH_ENABLED is set, validates the request's
+ * Authorization header against the configured credentials. On failure it sends
+ * a 401 response (with a WWW-Authenticate challenge) and returns ESP_FAIL; the
+ * caller should then return immediately. When auth is disabled this is a no-op
+ * that always returns ESP_OK.
+ *
+ * @param req The HTTP request to authenticate
+ * @return ESP_OK if authorized (or auth disabled), ESP_FAIL otherwise
+ */
+esp_err_t web_dashboard_require_auth(httpd_req_t *req);
 
 /**
  * @brief Initialize the web dashboard HTTP server

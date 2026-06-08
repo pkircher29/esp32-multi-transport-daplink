@@ -1,3 +1,7 @@
 wifi_password.h
 build/
 managed_components/
+
+# Generated self-signed TLS certificate for the HTTPS dashboard (never commit
+# the private key).
+main/certs/

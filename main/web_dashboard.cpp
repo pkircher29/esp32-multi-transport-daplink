@@ -5,6 +5,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_http_server.h"
+#if CONFIG_ESP_WEB_DASHBOARD_USE_HTTPS
+#include "esp_https_server.h"
+#endif
 #include "esp_log.h"
 #include "esp_wifi.h"
 #include "esp_ota_ops.h"
@@ -15,8 +18,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if CONFIG_ESP_WEB_DASHBOARD_AUTH_ENABLED
+#include "mbedtls/base64.h"
+#endif
 
 static const char *TAG = "WEB_DASHBOARD";
+
+// Upper bound on an inbound console WebSocket frame. The terminal only sends
+// short command lines; anything larger is rejected to avoid heap exhaustion.
+#define WS_MAX_FRAME_LEN 1024
+
+#if CONFIG_ESP_WEB_DASHBOARD_USE_HTTPS
+#define DASH_SCHEME "https"
+// Self-signed certificate + key, generated at build time and embedded via
+// EMBED_TXTFILES (see main/CMakeLists.txt).
+extern const unsigned char servercert_pem_start[] asm("_binary_servercert_pem_start");
+extern const unsigned char servercert_pem_end[]   asm("_binary_servercert_pem_end");
+extern const unsigned char prvtkey_pem_start[]    asm("_binary_prvtkey_pem_start");
+extern const unsigned char prvtkey_pem_end[]      asm("_binary_prvtkey_pem_end");
+#else
+#define DASH_SCHEME "http"
+#endif
 
 // Statistics tracking
 typedef struct {
@@ -33,6 +55,53 @@ typedef struct {
 } web_dashboard_state_t;
 
 static web_dashboard_state_t dashboard_state = {0};
+
+// HTTP Basic Auth for state-changing endpoints (OTA, WiFi config). Declared in
+// the header so wifi_config_api.c can reuse it.
+extern "C" esp_err_t web_dashboard_require_auth(httpd_req_t *req)
+{
+#if CONFIG_ESP_WEB_DASHBOARD_AUTH_ENABLED
+    // Build the expected "Basic base64(user:pass)" header once.
+    char cred[128];
+    int cred_len = snprintf(cred, sizeof(cred), "%s:%s",
+                            CONFIG_ESP_WEB_DASHBOARD_AUTH_USER,
+                            CONFIG_ESP_WEB_DASHBOARD_AUTH_PASS);
+    unsigned char b64[192];
+    size_t b64_len = 0;
+    char expected[208];
+    if (cred_len <= 0 ||
+        mbedtls_base64_encode(b64, sizeof(b64), &b64_len,
+                              (const unsigned char *)cred, cred_len) != 0) {
+        // Misconfiguration (credentials too long) - fail closed.
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Auth config error");
+        return ESP_FAIL;
+    }
+    snprintf(expected, sizeof(expected), "Basic %.*s", (int)b64_len, b64);
+
+    bool ok = false;
+    size_t hdr_len = httpd_req_get_hdr_value_len(req, "Authorization");
+    if (hdr_len > 0) {
+        char *got = (char *)malloc(hdr_len + 1);
+        if (got) {
+            if (httpd_req_get_hdr_value_str(req, "Authorization", got,
+                                            hdr_len + 1) == ESP_OK) {
+                ok = (strcmp(got, expected) == 0);
+            }
+            free(got);
+        }
+    }
+
+    if (!ok) {
+        httpd_resp_set_status(req, "401 Unauthorized");
+        httpd_resp_set_hdr(req, "WWW-Authenticate", "Basic realm=\"Airtap\"");
+        httpd_resp_send(req, NULL, 0);
+        return ESP_FAIL;
+    }
+#else
+    (void)req;
+#endif
+    return ESP_OK;
+}
 
 // Embedded HTML/CSS/JavaScript dashboard using custom delimiter "html"
 static const char *DASHBOARD_HTML = R"html(
@@ -732,37 +801,15 @@ static const char *DASHBOARD_HTML = R"html(
 
 // REST API: GET /api/status
 static esp_err_t status_handler(httpd_req_t *req) {
-    // Get WiFi status
-    wifi_ap_record_t ap_info;
-    esp_netif_ip_info_t ip_info;
-    bool wifi_connected = esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK;
-    esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"), &ip_info);
-    
-    char ip_str[16] = {0};
-    if (wifi_connected) {
-        snprintf(ip_str, sizeof(ip_str), IPSTR, IP2STR(&ip_info.ip));
+    char response[512] = {0};
+    uint16_t len = web_dashboard_get_status_json(response, sizeof(response));
+    if (len == 0) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to build status");
+        return ESP_FAIL;
     }
 
-    // Build JSON response with explicit casts to unsigned int to avoid format errors
-    char response[512] = {0};
-    snprintf(response, sizeof(response),
-        "{"
-        "\"wifi\":{\"connected\":%s,\"ip\":\"%s\",\"bytes_rx\":%u,\"bytes_tx\":%u},"
-        "\"usb\":{\"connected\":false,\"bytes_rx\":%u,\"bytes_tx\":%u},"
-        "\"bluetooth\":{\"connected\":false,\"bytes_rx\":%u,\"bytes_tx\":%u}"
-        "}",
-        wifi_connected ? "true" : "false",
-        ip_str,
-        (unsigned int)dashboard_state.stats[0].bytes_received,
-        (unsigned int)dashboard_state.stats[0].bytes_sent,
-        (unsigned int)dashboard_state.stats[1].bytes_received,
-        (unsigned int)dashboard_state.stats[1].bytes_sent,
-        (unsigned int)dashboard_state.stats[2].bytes_received,
-        (unsigned int)dashboard_state.stats[2].bytes_sent
-    );
-
     httpd_resp_set_type(req, "application/json");
-    return httpd_resp_send(req, response, strlen(response));
+    return httpd_resp_send(req, response, len);
 }
 
 // Serve dashboard HTML
@@ -783,7 +830,7 @@ static esp_err_t captive_portal_redirect_handler(httpd_req_t *req, httpd_err_cod
     wifi_mode_t mode;
     if (esp_wifi_get_mode(&mode) == ESP_OK && mode == WIFI_MODE_AP) {
         httpd_resp_set_status(req, "302 Found");
-        httpd_resp_set_hdr(req, "Location", "http://192.168.4.1/dashboard");
+        httpd_resp_set_hdr(req, "Location", DASH_SCHEME "://192.168.4.1/dashboard");
         return httpd_resp_send(req, NULL, 0);
     }
     httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Not Found");
@@ -792,6 +839,10 @@ static esp_err_t captive_portal_redirect_handler(httpd_req_t *req, httpd_err_cod
 
 // REST API: POST /api/ota - Wirelessly flash target partition
 static esp_err_t ota_post_handler(httpd_req_t *req) {
+    if (web_dashboard_require_auth(req) != ESP_OK) {
+        return ESP_FAIL;
+    }
+
     esp_ota_handle_t update_handle = 0;
     const esp_partition_t *update_partition = esp_ota_get_next_update_partition(NULL);
     
@@ -954,6 +1005,14 @@ static esp_err_t ws_handler(httpd_req_t *req) {
         return ret;
     }
     
+    // Reject oversized frames before allocating. The console only ever sends
+    // short command lines, so an unbounded length here would just be a way to
+    // exhaust the heap.
+    if (ws_pkt.len > WS_MAX_FRAME_LEN) {
+        ESP_LOGW(TAG, "Dropping oversized WS frame: %u bytes", (unsigned)ws_pkt.len);
+        return ESP_FAIL;
+    }
+
     if (ws_pkt.len > 0) {
         buf = (uint8_t *)calloc(1, ws_pkt.len + 1);
         if (buf == NULL) {
@@ -1008,17 +1067,32 @@ bool web_dashboard_init(void) {
         return true;
     }
 
-    // Configure HTTP server
+#if CONFIG_ESP_WEB_DASHBOARD_USE_HTTPS
+    // Start HTTPS (TLS) server with the embedded self-signed certificate.
+    httpd_ssl_config_t config = HTTPD_SSL_CONFIG_DEFAULT();
+    config.httpd.max_uri_handlers = 12;
+    config.servercert     = servercert_pem_start;
+    config.servercert_len = servercert_pem_end - servercert_pem_start;
+    config.prvtkey_pem    = prvtkey_pem_start;
+    config.prvtkey_len    = prvtkey_pem_end - prvtkey_pem_start;
+
+    esp_err_t ret = httpd_ssl_start(&dashboard_state.server, &config);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to start HTTPS server: %s", esp_err_to_name(ret));
+        return false;
+    }
+#else
+    // Configure plaintext HTTP server
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = 80;
     config.max_uri_handlers = 12;
 
-    // Start HTTP server
     esp_err_t ret = httpd_start(&dashboard_state.server, &config);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start HTTP server: %s", esp_err_to_name(ret));
         return false;
     }
+#endif
 
     // Register URI handlers
     httpd_uri_t root = {
@@ -1094,8 +1168,8 @@ bool web_dashboard_init(void) {
     dashboard_state.initialized = true;
     dashboard_state.start_time = esp_log_timestamp();
     
-    ESP_LOGI(TAG, "Web dashboard started on port 80");
-    ESP_LOGI(TAG, "Access at http://ESP32_IP/dashboard");
+    ESP_LOGI(TAG, "Web dashboard started (%s)", DASH_SCHEME);
+    ESP_LOGI(TAG, "Access at " DASH_SCHEME "://ESP32_IP/dashboard");
     
     return true;
 }

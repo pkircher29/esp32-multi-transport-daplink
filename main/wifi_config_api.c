@@ -1,5 +1,6 @@
 #include "wifi_config_api.h"
 #include "wifi_config_nvs.h"
+#include "web_dashboard.h"
 #include "esp_log.h"
 #include "cJSON.h"
 #include <string.h>
@@ -30,6 +31,10 @@ static esp_err_t wifi_config_get_handler(httpd_req_t *req) {
 
 // POST /api/wifi/config - Set WiFi credentials
 static esp_err_t wifi_config_set_handler(httpd_req_t *req) {
+    if (web_dashboard_require_auth(req) != ESP_OK) {
+        return ESP_FAIL;
+    }
+
     char buffer[256] = {0};
     int received = httpd_req_recv(req, buffer, sizeof(buffer) - 1);
     if (received <= 0) {
@@ -76,6 +81,10 @@ static esp_err_t wifi_config_set_handler(httpd_req_t *req) {
 
 // POST /api/wifi/reconnect - Reconnect with stored credentials
 static esp_err_t wifi_config_reconnect_handler(httpd_req_t *req) {
+    if (web_dashboard_require_auth(req) != ESP_OK) {
+        return ESP_FAIL;
+    }
+
     bool success = wifi_config_reconnect();
 
     cJSON *response = cJSON_CreateObject();
@@ -98,6 +107,10 @@ static esp_err_t wifi_config_reconnect_handler(httpd_req_t *req) {
 
 // POST /api/wifi/reset - Reset to defaults
 static esp_err_t wifi_config_reset_handler(httpd_req_t *req) {
+    if (web_dashboard_require_auth(req) != ESP_OK) {
+        return ESP_FAIL;
+    }
+
     bool success = wifi_config_reset();
 
     cJSON *response = cJSON_CreateObject();

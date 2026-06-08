@@ -211,7 +211,7 @@ void uart_bridge_task(void* __attribute__((unused)) arg)
         }
 
         // Handle client socket.
-        if(client_fd > 0 && FD_ISSET(client_fd, &read_fds)) {
+        if(client_fd >= 0 && FD_ISSET(client_fd, &read_fds)) {
             ret = recv(client_fd, buffer, sizeof(buffer)-1, 0);
             if(ret == 0 ||
               (ret < 0 && (errno == ECONNABORTED || errno == ENOTCONN))) {
@@ -231,7 +231,7 @@ void uart_bridge_task(void* __attribute__((unused)) arg)
         }
 
         // Handle UART read.
-        if(uart_fd > 0 && FD_ISSET(uart_fd, &read_fds)) {
+        if(uart_fd >= 0 && FD_ISSET(uart_fd, &read_fds)) {
             ret = read(uart_fd, buffer, sizeof(buffer)-1);
             if(ret <= 0) {
                 if(errno != EAGAIN && errno != EWOULDBLOCK)

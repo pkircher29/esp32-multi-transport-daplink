@@ -1,0 +1,28 @@
+name: Build Matrix
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    name: Compile Firmware (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [ esp32, esp32s3, esp32c3, esp32c6 ]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+
+      - name: Build Firmware
+        uses: espressif/idf-build-action@v2
+        with:
+          esp_idf_version: 'v5.1.2'
+          target: ${{ matrix.target }}
+          path_to_sdkconfig: 'sdkconfig'

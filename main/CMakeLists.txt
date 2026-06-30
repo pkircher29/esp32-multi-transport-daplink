@@ -6,7 +6,7 @@ set(COMPONENT_SRCS
     "SW_DP.c"
     "UART.c"
     "cmsis_dap_tcp.c"
-    "wifi_config_nvs.c"
+    "config_manager.c"
     "main.c")
 
 if(CONFIG_ESP_UART_BRIDGE_ENABLED)
@@ -33,18 +33,31 @@ if(CONFIG_ESP_PRINT_CPU_USAGE)
     list(APPEND COMPONENT_SRCS "cpu_usage.c")
 endif()
 
+set(COMP_REQUIRES
+    driver
+    lwip
+    esp_event
+    esp_timer
+    esp_wifi
+    nvs_flash
+    esp_http_server
+    json
+    mdns
+    app_update
+    mbedtls
+)
+
+if(CONFIG_ESP_USB_CDC_ENABLED)
+    list(APPEND COMP_REQUIRES esp_tinyusb)
+endif()
+
+if(CONFIG_ESP_CMSIS_DAP_BT_ENABLED OR CONFIG_ESP_CMSIS_DAP_BLE_ENABLED)
+    list(APPEND COMP_REQUIRES bt)
+endif()
+
 idf_component_register(SRCS ${COMPONENT_SRCS}
                        PRIV_REQUIRES spi_flash
-                       REQUIRES driver
-                       REQUIRES lwip
-                       REQUIRES esp_event
-                       REQUIRES esp_timer
-                       REQUIRES esp_wifi
-                       REQUIRES nvs_flash
-                       REQUIRES esp_tinyusb
-                       REQUIRES bt
-                       REQUIRES json
-                       REQUIRES esp_http_server
-                       REQUIRES mdns
-                       REQUIRES app_update
+                       REQUIRES ${COMP_REQUIRES}
                        INCLUDE_DIRS "")
+
+target_compile_options(${COMPONENT_LIB} PRIVATE "-Wno-missing-field-initializers")

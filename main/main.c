@@ -73,7 +73,8 @@
 #include "cmsis_dap_bt.h"
 #include "cmsis_dap_ble.h"
 #include "web_dashboard.h"
-#include "wifi_config_nvs.h"
+#include "config_manager.h"
+#include "esp_ota_ops.h"
 #include "uart_bridge.h"
 #include "mdns.h"
 
@@ -143,19 +144,52 @@ static void reboot(void)
     esp_restart();      // Does not return.
 }
 
+static bool reconnect_task_running = false;
+
+static void wifi_reconnect_task(void *param) {
+    uint32_t delay_ms = 5000;
+    while (wifi_retry_num < WIFI_MAXIMUM_RETRIES) {
+        printf("Retrying connection to WiFi in %" PRIu32 "s...\n", delay_ms / 1000);
+        vTaskDelay(pdMS_TO_TICKS(delay_ms));
+        
+        wifi_mode_t mode;
+        if (esp_wifi_get_mode(&mode) != ESP_OK || mode == WIFI_MODE_AP) {
+            // Abort reconnect if we are in SoftAP fallback mode
+            break;
+        }
+
+        esp_wifi_connect();
+        wifi_retry_num++;
+        delay_ms *= 2;
+        if (delay_ms > 40000) {
+            delay_ms = 40000;
+        }
+    }
+    
+    if (wifi_retry_num >= WIFI_MAXIMUM_RETRIES) {
+        printf("Failed to connect to WiFi after %d retries.\n", WIFI_MAXIMUM_RETRIES);
+        xEventGroupSetBits(wifi_event_group, WIFI_FAIL_BIT);
+    }
+    reconnect_task_running = false;
+    vTaskDelete(NULL);
+}
+
 static void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
 {
     if (event_base == WIFI_EVENT) {
         if (event_id == WIFI_EVENT_STA_START) {
-            printf("Attempting to connect to WiFi SSID: '%s'\n", WIFI_SSID);
+            char ssid[32];
+            config_manager_get_sta_credentials(ssid, sizeof(ssid), NULL, 0);
+            printf("Attempting to connect to WiFi SSID: '%s'\n", ssid);
             esp_wifi_connect();
         }
         else if (event_id == WIFI_EVENT_STA_CONNECTED) {
             int rssi;
             esp_wifi_sta_get_rssi(&rssi);
-            printf("Connected to WiFi SSID: '%s'. RSSI: %d dBm\n", WIFI_SSID,
-                    rssi);
+            char ssid[32];
+            config_manager_get_sta_credentials(ssid, sizeof(ssid), NULL, 0);
+            printf("Connected to WiFi SSID: '%s'. RSSI: %d dBm\n", ssid, rssi);
         }
         else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
             if (cmsis_dap_tcp_initialized) {
@@ -164,18 +198,14 @@ static void event_handler(void* arg, esp_event_base_t event_base,
                  * The server socket must be reinitialized. Just reboot to
                  * reinitialize everything.
                  */
-                printf("Lost connection to WiFi SSID: '%s'. Rebooting...\n",
-                        WIFI_SSID);
+                char ssid[32];
+                config_manager_get_sta_credentials(ssid, sizeof(ssid), NULL, 0);
+                printf("Lost connection to WiFi SSID: '%s'. Rebooting...\n", ssid);
                 reboot();       // Does not return.
             }
-            if (wifi_retry_num < WIFI_MAXIMUM_RETRIES) {
-                printf("Retrying connection to WiFi SSID: '%s'\n", WIFI_SSID);
-                esp_wifi_connect();
-                wifi_retry_num++;
-            }
-            else {
-                printf("Failed to connect to WiFi SSID: '%s'.\n", WIFI_SSID);
-                xEventGroupSetBits(wifi_event_group, WIFI_FAIL_BIT);
+            if (!reconnect_task_running) {
+                reconnect_task_running = true;
+                xTaskCreate(wifi_reconnect_task, "wifi_reconnect", 2048, NULL, 5, NULL);
             }
         }
     }
@@ -337,21 +367,22 @@ static void wifi_start_ap(void)
             .ssid = {0},
             .ssid_len = 0,
             .channel = 1,
-            .password = "",
+            .password = {0},
             .max_connection = 4,
-            .authmode = WIFI_AUTH_OPEN,
+            .authmode = WIFI_AUTH_WPA2_PSK,
         },
     };
     
-    // Create custom SSID using device MAC suffix so multiple devices don't collide
-    snprintf((char *)ap_config.ap.ssid, sizeof(ap_config.ap.ssid), "ESP32-DAPLink-%s", mac_addr_str + 6);
+    // Load AP credentials from Config Manager
+    config_manager_get_ap_credentials((char *)ap_config.ap.ssid, sizeof(ap_config.ap.ssid),
+                                      (char *)ap_config.ap.password, sizeof(ap_config.ap.password));
     ap_config.ap.ssid_len = strlen((char *)ap_config.ap.ssid);
     
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
     ESP_ERROR_CHECK(esp_wifi_start());
     
-    printf("Access Point started! SSID: '%s'\n", ap_config.ap.ssid);
+    printf("Access Point started! SSID: '%s', Password: '%s'\n", ap_config.ap.ssid, ap_config.ap.password);
     printf("Connect to this network and navigate to: http://192.168.4.1/dashboard\n");
 
     // Start DNS server task for captive portal redirection
@@ -396,9 +427,10 @@ int wifi_init(void)
                 NULL,
                 &instance_got_ip));
 #endif
-    custom_wifi_config_t nvs_cfg;
-    wifi_config_get(&nvs_cfg);
-
+    if (!config_manager_is_sta_custom()) {
+        printf("WiFi Station not configured. Falling back to Access Point mode immediately.\n");
+        return -1;
+    }
     wifi_config_t wifi_config = {
         .sta = {
             .ssid = {0},
@@ -415,8 +447,8 @@ int wifi_init(void)
             .sae_h2e_identifier = EXAMPLE_H2E_IDENTIFIER,
         },
     };
-    strlcpy((char *)wifi_config.sta.ssid, nvs_cfg.ssid, sizeof(wifi_config.sta.ssid));
-    strlcpy((char *)wifi_config.sta.password, nvs_cfg.password, sizeof(wifi_config.sta.password));
+    config_manager_get_sta_credentials((char *)wifi_config.sta.ssid, sizeof(wifi_config.sta.ssid),
+                                       (char *)wifi_config.sta.password, sizeof(wifi_config.sta.password));
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
     ESP_ERROR_CHECK(esp_wifi_start());
@@ -505,8 +537,8 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
-    // Initialize custom wifi NVS configuration
-    wifi_config_init();
+    // Initialize custom configuration manager
+    config_manager_init();
 
     /* Initialize WiFi and connect to AP. If unable to connect after retries,
      * fall back to Access Point mode for setup.
@@ -545,4 +577,10 @@ void app_main(void)
     xTaskCreatePinnedToCore(cpu_usage_task, "cpu_usage", 4096, NULL,
             CPU_USAGE_TASK_PRIO, NULL, tskNO_AFFINITY);
 #endif
+
+    // Mark the app as valid to confirm successful boot and cancel rollback (Phase 3, Item 10)
+    esp_err_t ota_err = esp_ota_mark_app_valid_cancel_rollback();
+    if (ota_err == ESP_OK) {
+        printf("Firmware validated successfully, automatic rollback cancelled!\n");
+    }
 }

@@ -112,16 +112,29 @@ void uart_bridge_task(void* __attribute__((unused)) arg)
         .flow_ctrl  = UART_HW_FLOWCTRL_DISABLE,
         .source_clk = UART_SCLK_DEFAULT,
     };
-    ESP_ERROR_CHECK(uart_param_config(CONFIG_ESP_UART_BRIDGE_UART_NUM,
-                &uart_config));
+    esp_err_t err = uart_param_config(CONFIG_ESP_UART_BRIDGE_UART_NUM, &uart_config);
+    if (err != ESP_OK) {
+        fprintf(stderr, "UART bridge: UART parameter configuration failed\n");
+        close(listen_fd);
+        uart_driver_delete(CONFIG_ESP_UART_BRIDGE_UART_NUM);
+        vTaskDelete(NULL);
+        return;
+    }
 
 #ifdef CONFIG_ESP_UART_BRIDGE_REMAP_PINS
     fprintf(stderr, "UART bridge: remapping UART_TX = GPIO_NUM_%u, UART_RX = "
             "GPIO_NUM_%u.\n", CONFIG_ESP_UART_BRIDGE_TXD_PIN,
             CONFIG_ESP_UART_BRIDGE_RXD_PIN);
-    ESP_ERROR_CHECK(uart_set_pin(CONFIG_ESP_UART_BRIDGE_UART_NUM,
+    err = uart_set_pin(CONFIG_ESP_UART_BRIDGE_UART_NUM,
                 CONFIG_ESP_UART_BRIDGE_TXD_PIN, CONFIG_ESP_UART_BRIDGE_RXD_PIN,
-                UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+                UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    if (err != ESP_OK) {
+        fprintf(stderr, "UART bridge: remapping pins failed\n");
+        close(listen_fd);
+        uart_driver_delete(CONFIG_ESP_UART_BRIDGE_UART_NUM);
+        vTaskDelete(NULL);
+        return;
+    }
 #endif
 
     char uart_addr[32];
@@ -133,6 +146,7 @@ void uart_bridge_task(void* __attribute__((unused)) arg)
     if(uart_fd < 0) {
         perror("UART bridge: failed opening UART");
         close(listen_fd);
+        uart_driver_delete(CONFIG_ESP_UART_BRIDGE_UART_NUM);
         vTaskDelete(NULL);
         return;
     }
@@ -211,10 +225,10 @@ void uart_bridge_task(void* __attribute__((unused)) arg)
         }
 
         // Handle client socket.
-        if(client_fd > 0 && FD_ISSET(client_fd, &read_fds)) {
+        if (client_fd >= 0 && FD_ISSET(client_fd, &read_fds)) {
             ret = recv(client_fd, buffer, sizeof(buffer)-1, 0);
             if(ret == 0 ||
-              (ret < 0 && (errno == ECONNABORTED || errno == ENOTCONN))) {
+              (ret < 0 && (errno == ECONNABORTED || errno == ENOTCONN || errno == ECONNRESET || errno == EPIPE))) {
                 // Client has disconnected.
                 fprintf(stdout, "UART bridge: client disconnected.\n");
                 close(client_fd);
@@ -255,5 +269,9 @@ void uart_bridge_task(void* __attribute__((unused)) arg)
     if(uart_fd >= 0)
         close(uart_fd);
     close(listen_fd);
+    
+    // Clean up UART driver (Phase 4, Item 12)
+    uart_driver_delete(CONFIG_ESP_UART_BRIDGE_UART_NUM);
+    
     vTaskDelete(NULL);
 }
